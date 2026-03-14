@@ -1,3 +1,8 @@
+## [0.3.0](https://github.com/t-rhex/mxroute-cli/compare/v0.2.0...v0.3.0) (2026-03-14)
+
+### Features
+
+* add agentic commands — fix, onboard, report, header-analyze, migrate, notify ([bfcb35b](https://github.com/t-rhex/mxroute-cli/commit/bfcb35b45674457c346d832c09302771bc16c128))
 ## [0.2.0](https://github.com/t-rhex/mxroute-cli/compare/v0.1.3...v0.2.0) (2026-03-14)
 
 ### Features
