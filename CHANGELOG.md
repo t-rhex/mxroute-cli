@@ -1,3 +1,8 @@
+## [0.1.3](https://github.com/t-rhex/mxroute-cli/compare/v0.1.2...v0.1.3) (2026-03-14)
+
+### Features
+
+* improved status dashboard — show API auth status, guide users ([26e810d](https://github.com/t-rhex/mxroute-cli/commit/26e810ddee65bfaec554ee0b1ac3c893cd02fc6b))
 ## [0.1.2](https://github.com/t-rhex/mxroute-cli/compare/v0.1.1...v0.1.2) (2026-03-14)
 
 ### Features
