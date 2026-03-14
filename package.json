@@ -22,7 +22,10 @@
     "ci": "npm run lint && npm run typecheck && npm run build && npm test",
     "prepublishOnly": "npm run ci",
     "postbuild": "chmod +x dist/index.js dist/mcp.js",
-    "prepare": "husky"
+    "prepare": "husky",
+    "release": "npm run ci && npm version patch && git push && git push --tags",
+    "release:minor": "npm run ci && npm version minor && git push && git push --tags",
+    "release:major": "npm run ci && npm version major && git push && git push --tags"
   },
   "lint-staged": {
     "*.ts": [
