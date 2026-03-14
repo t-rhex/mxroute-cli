@@ -653,6 +653,71 @@ program
     await importCommand(file);
   });
 
+// ─── Fix ─────────────────────────────────────────────────
+program
+  .command('fix')
+  .description('Auto-fix all issues found by audit (DNS, catch-all, DMARC)')
+  .action(async () => {
+    const { fixCommand } = await import('./commands/fix');
+    await fixCommand();
+  });
+
+// ─── Onboard ─────────────────────────────────────────────
+program
+  .command('onboard [domain]')
+  .description('Complete domain onboarding — accounts, DNS, verification')
+  .action(async (domain?: string) => {
+    const { onboardCommand } = await import('./commands/onboard');
+    await onboardCommand(domain);
+  });
+
+// ─── Report ──────────────────────────────────────────────
+program
+  .command('report')
+  .description('Generate HTML infrastructure report')
+  .action(async () => {
+    const { reportCommand } = await import('./commands/report');
+    await reportCommand();
+  });
+
+// ─── Header Analyze ──────────────────────────────────────
+program
+  .command('header-analyze')
+  .alias('headers')
+  .description('Analyze email headers — routing, auth, spam scores')
+  .action(async () => {
+    const { headerAnalyzeCommand } = await import('./commands/header-analyze');
+    await headerAnalyzeCommand();
+  });
+
+// ─── Migrate ─────────────────────────────────────────────
+program
+  .command('migrate')
+  .description('Guided email migration wizard (imapsync)')
+  .action(async () => {
+    const { migrateCommand } = await import('./commands/migrate');
+    await migrateCommand();
+  });
+
+// ─── Notify ──────────────────────────────────────────────
+const notifyCmd = program.command('notify').description('Notification channels (Slack, Discord, Telegram)');
+
+notifyCmd
+  .command('setup')
+  .description('Configure notification channel')
+  .action(async () => {
+    const { notifySetup } = await import('./commands/notify');
+    await notifySetup();
+  });
+
+notifyCmd
+  .command('test')
+  .description('Send a test notification')
+  .action(async () => {
+    const { notifyTest } = await import('./commands/notify');
+    await notifyTest();
+  });
+
 // ─── Audit ───────────────────────────────────────────────
 program
   .command('audit')
