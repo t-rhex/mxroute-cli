@@ -645,6 +645,45 @@ program
     await importCommand(file);
   });
 
+// ─── Audit ───────────────────────────────────────────────
+program
+  .command('audit')
+  .description('Security audit — DNS, SPF lookups, catch-all, forwarding loops')
+  .action(async () => {
+    const { auditCommand } = await import('./commands/audit');
+    await auditCommand();
+  });
+
+// ─── IP Check ────────────────────────────────────────────
+program
+  .command('ip [server]')
+  .alias('blacklist')
+  .description('Check server IP against DNS blacklists')
+  .action(async (server?: string) => {
+    const { ipCheckCommand } = await import('./commands/ip');
+    await ipCheckCommand(server);
+  });
+
+// ─── Share ───────────────────────────────────────────────
+program
+  .command('share [email]')
+  .description('Generate shareable email setup instructions (HTML/terminal)')
+  .action(async (email?: string) => {
+    const { shareCommand } = await import('./commands/share');
+    await shareCommand(email);
+  });
+
+// ─── Monitor ─────────────────────────────────────────────
+program
+  .command('monitor')
+  .description('Health check for IMAP/SMTP ports and DNS (cron-friendly)')
+  .option('-q, --quiet', 'Suppress output (exit code only)')
+  .option('-a, --alert', 'Send alert email on failure')
+  .action(async (options) => {
+    const { monitorCommand } = await import('./commands/monitor');
+    await monitorCommand(options);
+  });
+
 // ─── Troubleshoot ────────────────────────────────────────
 program
   .command('troubleshoot')
