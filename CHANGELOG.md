@@ -1,3 +1,8 @@
+## [0.1.2](https://github.com/t-rhex/mxroute-cli/compare/v0.1.1...v0.1.2) (2026-03-14)
+
+### Features
+
+* unified config setup — API key first, SMTP optional ([b4de281](https://github.com/t-rhex/mxroute-cli/commit/b4de28170357bd174979c05dcb04dfc236e53c16))
 ## 0.1.1 (2026-03-14)
 
 ### Features
