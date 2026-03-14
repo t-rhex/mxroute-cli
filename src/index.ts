@@ -48,6 +48,14 @@ configCmd
   });
 
 configCmd
+  .command('smtp')
+  .description('Configure SMTP credentials for sending email')
+  .action(async () => {
+    const { configSmtp } = await import('./commands/config');
+    await configSmtp();
+  });
+
+configCmd
   .command('show')
   .description('Show current configuration')
   .action(async () => {
@@ -195,10 +203,10 @@ const authCmd = program.command('auth').description('Authenticate with MXroute D
 
 authCmd
   .command('login')
-  .description('Authenticate with login key')
+  .description('Authenticate with login key (runs config setup)')
   .action(async () => {
-    const { authLogin } = await import('./commands/auth');
-    await authLogin();
+    const { configSetup } = await import('./commands/config');
+    await configSetup();
   });
 
 authCmd
