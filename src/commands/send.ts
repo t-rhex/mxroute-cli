@@ -20,7 +20,7 @@ export async function sendCommand(options: SendOptions): Promise<void> {
 
   if (!config.server || !config.username || !config.password) {
     console.log(
-      theme.error(`  ${theme.statusIcon('fail')} Not configured. Run ${theme.bold('mxroute config setup')} first.\n`),
+      theme.error(`  ${theme.statusIcon('fail')} Not configured. Run ${theme.bold('mxroute config smtp')} first.\n`),
     );
     process.exit(1);
   }

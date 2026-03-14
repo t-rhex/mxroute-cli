@@ -56,6 +56,14 @@ configCmd
   });
 
 configCmd
+  .command('remove-smtp')
+  .description('Remove stored SMTP credentials')
+  .action(async () => {
+    const { configRemoveSmtp } = await import('./commands/config');
+    await configRemoveSmtp();
+  });
+
+configCmd
   .command('show')
   .description('Show current configuration')
   .action(async () => {
@@ -564,16 +572,19 @@ aliasesCmd
   });
 
 // ─── Quota ───────────────────────────────────────────────
-program
-  .command('quota')
-  .description('Show account usage and quotas')
+const quotaCmd = program.command('quota').description('Account usage and quotas');
+
+quotaCmd
+  .command('show')
+  .alias('overview')
+  .description('Show account-wide usage stats')
   .action(async () => {
     const { quotaOverview } = await import('./commands/quota');
     await quotaOverview();
   });
 
-program
-  .command('quota-set [domain]')
+quotaCmd
+  .command('set [domain]')
   .description('Set email account quota')
   .action(async (domain?: string) => {
     const { quotaSet } = await import('./commands/quota');
@@ -602,7 +613,7 @@ program
 
     const config = getConfig();
     if (!config.server || !config.username || !config.password) {
-      console.log(theme.error(`\n  Run ${theme.bold('mxroute config setup')} first.\n`));
+      console.log(theme.error(`\n  Run ${theme.bold('mxroute config smtp')} first.\n`));
       process.exit(1);
     }
 

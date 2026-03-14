@@ -83,16 +83,28 @@ export async function dnsCheck(domain?: string): Promise<void> {
 
 export async function dnsRecords(domain?: string): Promise<void> {
   const config = getConfig();
-  const targetDomain = domain || config.domain;
+  let targetDomain = domain || config.domain;
   const server = config.server;
 
-  if (!targetDomain || !server) {
+  if (!server) {
     console.log(
       theme.error(
-        `\n  ${theme.statusIcon('fail')} Configure domain and server first: ${theme.bold('mxroute config setup')}\n`,
+        `\n  ${theme.statusIcon('fail')} Server not configured. Run ${theme.bold('mxroute config setup')} first.\n`,
       ),
     );
     process.exit(1);
+  }
+
+  if (!targetDomain) {
+    const res = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'domain',
+        message: theme.secondary('Domain:'),
+        validate: (input: string) => (input.includes('.') ? true : 'Enter a valid domain'),
+      },
+    ]);
+    targetDomain = res.domain;
   }
 
   console.log(theme.heading(`Required DNS Records: ${targetDomain}`));
@@ -133,16 +145,28 @@ export async function dnsRecords(domain?: string): Promise<void> {
 
 export async function dnsGenerate(domain?: string): Promise<void> {
   const config = getConfig();
-  const targetDomain = domain || config.domain;
+  let targetDomain = domain || config.domain;
   const server = config.server;
 
-  if (!targetDomain || !server) {
+  if (!server) {
     console.log(
       theme.error(
-        `\n  ${theme.statusIcon('fail')} Configure domain and server first: ${theme.bold('mxroute config setup')}\n`,
+        `\n  ${theme.statusIcon('fail')} Server not configured. Run ${theme.bold('mxroute config setup')} first.\n`,
       ),
     );
     process.exit(1);
+  }
+
+  if (!targetDomain) {
+    const res = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'domain',
+        message: theme.secondary('Domain:'),
+        validate: (input: string) => (input.includes('.') ? true : 'Enter a valid domain'),
+      },
+    ]);
+    targetDomain = res.domain;
   }
 
   const { provider } = await inquirer.prompt([

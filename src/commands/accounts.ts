@@ -282,6 +282,16 @@ export async function accountsPasswd(domain?: string): Promise<void> {
       },
     ]);
 
+    const { confirmPassword } = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'confirmPassword',
+        message: theme.secondary('Confirm new password:'),
+        mask: '•',
+        validate: (input: string) => (input === password ? true : 'Passwords do not match'),
+      },
+    ]);
+
     const pwSpinner = ora({ text: 'Updating password...', spinner: 'dots12', color: 'cyan' }).start();
     const result = await changeEmailPassword(creds, targetDomain, user, password);
 

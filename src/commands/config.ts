@@ -219,7 +219,55 @@ export async function configSmtp(): Promise<void> {
   setConfig('username', answers.username);
   setConfig('password', answers.password);
 
+  // After setting config, also update the active profile
+  const currentConfig = getConfig();
+  const profiles = getProfiles();
+  if (profiles[currentConfig.activeProfile]) {
+    profiles[currentConfig.activeProfile].username = answers.username;
+    profiles[currentConfig.activeProfile].password = answers.password;
+    setConfig('profiles', profiles);
+  }
+
   console.log(theme.success(`\n  ${theme.statusIcon('pass')} SMTP credentials saved for ${answers.username}\n`));
+}
+
+export async function configRemoveSmtp(): Promise<void> {
+  const config = getConfig();
+
+  if (!config.username && !config.password) {
+    console.log(theme.muted('\n  No SMTP credentials configured.\n'));
+    return;
+  }
+
+  console.log(theme.heading('Remove SMTP Credentials'));
+  console.log(theme.keyValue('Current SMTP account', config.username));
+  console.log('');
+
+  const { confirm } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: 'Remove SMTP credentials?',
+      default: false,
+    },
+  ]);
+
+  if (confirm) {
+    setConfig('username', '');
+    setConfig('password', '');
+
+    const currentConfig = getConfig();
+    const profiles = getProfiles();
+    if (profiles[currentConfig.activeProfile]) {
+      profiles[currentConfig.activeProfile].username = '';
+      profiles[currentConfig.activeProfile].password = '';
+      setConfig('profiles', profiles);
+    }
+
+    console.log(theme.success(`\n  ${theme.statusIcon('pass')} SMTP credentials removed.\n`));
+  } else {
+    console.log(theme.muted('\n  Cancelled.\n'));
+  }
 }
 
 export async function configShow(): Promise<void> {
