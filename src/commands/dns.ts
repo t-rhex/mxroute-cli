@@ -1,9 +1,8 @@
-import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { runFullDnsCheck, DnsCheckResult } from '../utils/dns';
+import { runFullDnsCheck } from '../utils/dns';
 
 export async function dnsCheck(domain?: string): Promise<void> {
   const config = getConfig();

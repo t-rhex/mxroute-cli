@@ -3,20 +3,8 @@ import ora from 'ora';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { listDomains, listDomainPointers, DACredentials } from '../utils/directadmin';
-
-function getCreds(): DACredentials {
-  const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} Not authenticated. Run ${theme.bold('mxroute auth login')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-}
+import { listDomains, listDomainPointers } from '../utils/directadmin';
+import { getCreds, tableChars } from '../utils/shared';
 
 export async function domainsList(): Promise<void> {
   const creds = getCreds();
@@ -37,23 +25,7 @@ export async function domainsList(): Promise<void> {
     const table = new Table({
       head: [chalk.hex('#6C63FF')('#'), chalk.hex('#6C63FF')('Domain'), chalk.hex('#6C63FF')('Aliases')],
       style: { head: [], border: ['gray'] },
-      chars: {
-        top: '─',
-        'top-mid': '┬',
-        'top-left': '  ┌',
-        'top-right': '┐',
-        bottom: '─',
-        'bottom-mid': '┴',
-        'bottom-left': '  └',
-        'bottom-right': '┘',
-        left: '  │',
-        'left-mid': '  ├',
-        mid: '─',
-        'mid-mid': '┼',
-        right: '│',
-        'right-mid': '┤',
-        middle: '│',
-      },
+      chars: tableChars,
     });
 
     for (let i = 0; i < domains.length; i++) {

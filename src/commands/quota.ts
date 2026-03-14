@@ -2,28 +2,8 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
-import {
-  getQuotaUsage,
-  getUserConfig,
-  listDomains,
-  listEmailAccounts,
-  changeEmailQuota,
-  DACredentials,
-} from '../utils/directadmin';
-
-function getCreds(): DACredentials {
-  const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} Not authenticated. Run ${theme.bold('mxroute auth login')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-}
+import { getQuotaUsage, getUserConfig, listEmailAccounts, changeEmailQuota } from '../utils/directadmin';
+import { getCreds, pickDomain } from '../utils/shared';
 
 function buildBar(used: number, total: number, width = 20): string {
   if (total <= 0) return chalk.hex('#7C8DB0')('unlimited');
@@ -123,44 +103,14 @@ export async function quotaOverview(): Promise<void> {
 
 export async function quotaSet(domain?: string): Promise<void> {
   const creds = getCreds();
+  const targetDomain = await pickDomain(creds, domain);
 
-  // Pick domain
-  if (!domain) {
-    const config = getConfig();
-    if (config.domain) {
-      domain = config.domain;
-    } else {
-      const domSpinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
-      const domains = await listDomains(creds);
-      domSpinner.stop();
-
-      if (domains.length === 0) {
-        console.log(theme.error(`\n  ${theme.statusIcon('fail')} No domains found on this account.\n`));
-        process.exit(1);
-      }
-
-      if (domains.length === 1) {
-        domain = domains[0];
-      } else {
-        const { selected } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'selected',
-            message: 'Select domain:',
-            choices: domains,
-          },
-        ]);
-        domain = selected;
-      }
-    }
-  }
-
-  console.log(theme.heading(`Set Email Quota on ${domain}`));
+  console.log(theme.heading(`Set Email Quota on ${targetDomain}`));
 
   const spinner = ora({ text: 'Fetching accounts...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
-    const accounts = await listEmailAccounts(creds, domain!);
+    const accounts = await listEmailAccounts(creds, targetDomain);
     spinner.stop();
 
     if (accounts.length === 0) {
@@ -173,7 +123,7 @@ export async function quotaSet(domain?: string): Promise<void> {
         type: 'list',
         name: 'user',
         message: 'Select account:',
-        choices: accounts.map((a) => ({ name: `${a}@${domain}`, value: a })),
+        choices: accounts.map((a) => ({ name: `${a}@${targetDomain}`, value: a })),
       },
     ]);
 
@@ -199,7 +149,7 @@ export async function quotaSet(domain?: string): Promise<void> {
       {
         type: 'confirm',
         name: 'confirm',
-        message: `Set quota for ${user}@${domain} to ${quotaLabel}?`,
+        message: `Set quota for ${user}@${targetDomain} to ${quotaLabel}?`,
         default: true,
       },
     ]);
@@ -210,17 +160,17 @@ export async function quotaSet(domain?: string): Promise<void> {
     }
 
     const setSpinner = ora({ text: 'Updating quota...', spinner: 'dots12', color: 'cyan' }).start();
-    const result = await changeEmailQuota(creds, domain!, user, quotaNum);
+    const result = await changeEmailQuota(creds, targetDomain, user, quotaNum);
 
     if (result.error && result.error !== '0') {
       setSpinner.fail(chalk.red('Failed to update quota'));
       console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
     } else {
-      setSpinner.succeed(chalk.green(`Quota updated for ${user}@${domain}`));
+      setSpinner.succeed(chalk.green(`Quota updated for ${user}@${targetDomain}`));
       console.log('');
       console.log(
         theme.box(
-          [theme.keyValue('Account', `${user}@${domain}`, 0), theme.keyValue('Quota', quotaLabel, 0)].join('\n'),
+          [theme.keyValue('Account', `${user}@${targetDomain}`, 0), theme.keyValue('Quota', quotaLabel, 0)].join('\n'),
           'Quota Updated',
         ),
       );

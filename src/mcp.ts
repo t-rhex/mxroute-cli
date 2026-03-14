@@ -13,7 +13,6 @@ import { getConfig } from './utils/config';
 import { sendEmail } from './utils/api';
 import {
   DACredentials,
-  testAuth,
   listDomains,
   listEmailAccounts,
   createEmailAccount,
@@ -25,7 +24,6 @@ import {
   createForwarder,
   deleteForwarder,
   listAutoresponders,
-  getAutoresponder,
   createAutoresponder,
   deleteAutoresponder,
   getCatchAll,

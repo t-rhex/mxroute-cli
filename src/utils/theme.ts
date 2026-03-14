@@ -38,7 +38,6 @@ export const theme = {
 
   banner(): string {
     const c = chalk.hex('#00D9FF');
-    const m = chalk.hex('#7C8DB0');
     const p = chalk.hex('#6C63FF');
     const logo = [
       '',

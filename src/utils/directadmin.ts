@@ -440,7 +440,7 @@ export async function getDkimKey(creds: DACredentials, domain: string): Promise<
     };
 
     // Check typed arrays (TXT, txt_records, etc.)
-    for (const [key, val] of Object.entries(records)) {
+    for (const [, val] of Object.entries(records)) {
       if (Array.isArray(val)) {
         const found = searchObj(val);
         if (found) return found;

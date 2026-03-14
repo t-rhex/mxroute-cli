@@ -3,59 +3,15 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
 import {
-  listDomains,
   listAutoresponders,
   getAutoresponder,
   createAutoresponder,
   modifyAutoresponder,
   deleteAutoresponder,
   listEmailAccounts,
-  DACredentials,
 } from '../utils/directadmin';
-
-function getCreds(): DACredentials {
-  const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} Not authenticated. Run ${theme.bold('mxroute auth login')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-}
-
-async function pickDomain(creds: DACredentials, domain?: string): Promise<string> {
-  if (domain) return domain;
-
-  const config = getConfig();
-  if (config.domain) return config.domain;
-
-  const spinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
-  const domains = await listDomains(creds);
-  spinner.stop();
-
-  if (domains.length === 0) {
-    console.log(theme.error(`\n  ${theme.statusIcon('fail')} No domains found.\n`));
-    process.exit(1);
-  }
-
-  if (domains.length === 1) return domains[0];
-
-  const { selected } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'selected',
-      message: 'Select domain:',
-      choices: domains,
-    },
-  ]);
-
-  return selected;
-}
+import { getCreds, pickDomain, tableChars } from '../utils/shared';
 
 export async function autoresponderList(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -77,23 +33,7 @@ export async function autoresponderList(domain?: string): Promise<void> {
     const table = new Table({
       head: [chalk.hex('#6C63FF')('#'), chalk.hex('#6C63FF')('Account'), chalk.hex('#6C63FF')('CC')],
       style: { head: [], border: ['gray'] },
-      chars: {
-        top: '─',
-        'top-mid': '┬',
-        'top-left': '  ┌',
-        'top-right': '┐',
-        bottom: '─',
-        'bottom-mid': '┴',
-        'bottom-left': '  └',
-        'bottom-right': '┘',
-        left: '  │',
-        'left-mid': '  ├',
-        mid: '─',
-        'mid-mid': '┼',
-        right: '│',
-        'right-mid': '┤',
-        middle: '│',
-      },
+      chars: tableChars,
     });
 
     for (let i = 0; i < autoresponders.length; i++) {

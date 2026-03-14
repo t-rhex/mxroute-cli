@@ -1,4 +1,4 @@
-import { resolve, Resolver } from 'dns';
+import { Resolver } from 'dns';
 import { promisify } from 'util';
 
 const resolver = new Resolver();
@@ -10,7 +10,7 @@ const resolveCname = promisify(resolver.resolveCname.bind(resolver));
 export interface DnsCheckResult {
   type: string;
   name: string;
-  status: 'pass' | 'fail' | 'warn';
+  status: 'pass' | 'fail' | 'warn' | 'info';
   expected: string;
   actual: string;
   message: string;
@@ -174,7 +174,7 @@ export async function checkDkimRecord(domain: string): Promise<DnsCheckResult> {
         message: 'DKIM record found but may be malformed',
       };
     }
-  } catch (err: any) {
+  } catch {
     return {
       type: 'DKIM',
       name: `x._domainkey.${domain}`,
@@ -230,7 +230,7 @@ export async function checkDmarcRecord(domain: string): Promise<DnsCheckResult> 
         message: 'Record found but not a valid DMARC record',
       };
     }
-  } catch (err: any) {
+  } catch {
     return {
       type: 'DMARC',
       name: `_dmarc.${domain}`,
@@ -271,11 +271,11 @@ export async function checkCustomHostname(
         message: `CNAME not pointing to ${expected}`,
       };
     }
-  } catch (err: any) {
+  } catch {
     return {
       type: 'CNAME',
       name: `${subdomain}.${domain}`,
-      status: 'info' as any,
+      status: 'info',
       expected: `${server}.mxrouting.net`,
       actual: 'No CNAME record',
       message: 'No custom hostname configured (optional)',

@@ -8,7 +8,6 @@ import * as os from 'os';
 
 describe('Config Module', () => {
   const tmpDir = path.join(os.tmpdir(), 'mxroute-cli-test-' + Date.now());
-  const configFile = path.join(tmpDir, 'config.json');
 
   beforeEach(() => {
     if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });

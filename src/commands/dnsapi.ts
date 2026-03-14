@@ -3,15 +3,8 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
-import {
-  listDomains,
-  listDnsRecords,
-  addDnsRecord,
-  deleteDnsRecord,
-  getDkimKey,
-  DACredentials,
-} from '../utils/directadmin';
+import { listDnsRecords, addDnsRecord, deleteDnsRecord, getDkimKey } from '../utils/directadmin';
+import { getCreds, pickDomain, tableChars } from '../utils/shared';
 
 interface DnsRecord {
   type: string;
@@ -19,48 +12,6 @@ interface DnsRecord {
   value: string;
   ttl?: number;
   priority?: number;
-}
-
-function getCreds(): DACredentials {
-  const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} Not authenticated. Run ${theme.bold('mxroute auth login')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-}
-
-async function pickDomain(creds: DACredentials, domain?: string): Promise<string> {
-  if (domain) return domain;
-
-  const config = getConfig();
-  if (config.domain) return config.domain;
-
-  const spinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
-  const domains = await listDomains(creds);
-  spinner.stop();
-
-  if (domains.length === 0) {
-    console.log(theme.error(`\n  ${theme.statusIcon('fail')} No domains found.\n`));
-    process.exit(1);
-  }
-
-  if (domains.length === 1) return domains[0];
-
-  const { selected } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'selected',
-      message: 'Select domain:',
-      choices: domains,
-    },
-  ]);
-
-  return selected;
 }
 
 function parseRecords(raw: any): DnsRecord[] {
@@ -197,23 +148,7 @@ export async function dnsapiList(domain?: string): Promise<void> {
         chalk.hex('#6C63FF')('TTL'),
       ],
       style: { head: [], border: ['gray'] },
-      chars: {
-        top: '─',
-        'top-mid': '┬',
-        'top-left': '  ┌',
-        'top-right': '┐',
-        bottom: '─',
-        'bottom-mid': '┴',
-        'bottom-left': '  └',
-        'bottom-right': '┘',
-        left: '  │',
-        'left-mid': '  ├',
-        mid: '─',
-        'mid-mid': '┼',
-        right: '│',
-        'right-mid': '┤',
-        middle: '│',
-      },
+      chars: tableChars,
       colWidths: [6, 8, 24, 46, 8],
       wordWrap: true,
     });

@@ -2,50 +2,8 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
-import { listDomains, getCatchAll, setCatchAll, listEmailAccounts, DACredentials } from '../utils/directadmin';
-
-function getCreds(): DACredentials {
-  const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} Not authenticated. Run ${theme.bold('mxroute auth login')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-}
-
-async function pickDomain(creds: DACredentials, domain?: string): Promise<string> {
-  if (domain) return domain;
-
-  const config = getConfig();
-  if (config.domain) return config.domain;
-
-  const spinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
-  const domains = await listDomains(creds);
-  spinner.stop();
-
-  if (domains.length === 0) {
-    console.log(theme.error(`\n  ${theme.statusIcon('fail')} No domains found.\n`));
-    process.exit(1);
-  }
-
-  if (domains.length === 1) return domains[0];
-
-  const { selected } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'selected',
-      message: 'Select domain:',
-      choices: domains,
-    },
-  ]);
-
-  return selected;
-}
+import { getCatchAll, setCatchAll, listEmailAccounts } from '../utils/directadmin';
+import { getCreds, pickDomain } from '../utils/shared';
 
 export async function catchallGet(domain?: string): Promise<void> {
   const creds = getCreds();
