@@ -1,3 +1,14 @@
+## [0.2.0](https://github.com/t-rhex/mxroute-cli/compare/v0.1.3...v0.2.0) (2026-03-14)
+
+### Features
+
+* add audit, IP blacklist check, share, and monitor commands ([c234bf7](https://github.com/t-rhex/mxroute-cli/commit/c234bf7a4c25901363e67e8d6ab7f034b908929e))
+* add dns setup, doctor, export/import, whoami, open commands ([d0df9f0](https://github.com/t-rhex/mxroute-cli/commit/d0df9f0860ba62623b19b4e11efe002442f45af7))
+* add webhook, completions, dns watch, bulk, diff, benchmark, cron ([31e9f24](https://github.com/t-rhex/mxroute-cli/commit/31e9f24608285ef1a338c11a03ddb60fe7ad231c))
+
+### Bug Fixes
+
+* comprehensive review — bugs, UX, and code quality fixes ([f626dca](https://github.com/t-rhex/mxroute-cli/commit/f626dca6e2e96425f5dae08080d31ebe1b352c03))
 ## [0.1.3](https://github.com/t-rhex/mxroute-cli/compare/v0.1.2...v0.1.3) (2026-03-14)
 
 ### Features
