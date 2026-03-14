@@ -3,6 +3,14 @@
   "version": "0.1.1",
   "description": "A powerful CLI for managing MXroute email hosting — send emails, verify DNS, generate records, troubleshoot, and more.",
   "main": "dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t-rhex/mxroute-cli"
+  },
+  "homepage": "https://github.com/t-rhex/mxroute-cli#readme",
+  "bugs": {
+    "url": "https://github.com/t-rhex/mxroute-cli/issues"
+  },
   "bin": {
     "mxroute": "dist/index.js",
     "mxroute-mcp": "dist/mcp.js"
