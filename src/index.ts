@@ -145,6 +145,14 @@ dnsCmd
     await dnsSetup(domain);
   });
 
+dnsCmd
+  .command('watch [domain]')
+  .description('Watch DNS propagation in real-time (re-checks every 15s)')
+  .action(async (domain?: string) => {
+    const { dnsWatchCommand } = await import('./commands/dns-watch');
+    await dnsWatchCommand(domain);
+  });
+
 // ─── Info ────────────────────────────────────────────────
 const infoCmd = program.command('info').description('Connection settings, webmail, CalDAV, and service info');
 
@@ -682,6 +690,82 @@ program
   .action(async (options) => {
     const { monitorCommand } = await import('./commands/monitor');
     await monitorCommand(options);
+  });
+
+// ─── Webhook ─────────────────────────────────────────────
+program
+  .command('webhook')
+  .description('Start local HTTP server that relays email via MXroute')
+  .option('-p, --port <port>', 'Port to listen on', '3025')
+  .action(async (options) => {
+    const { webhookCommand } = await import('./commands/webhook');
+    await webhookCommand(options);
+  });
+
+// ─── Completions ─────────────────────────────────────────
+program
+  .command('completions [shell]')
+  .description('Generate shell completions (bash, zsh, fish)')
+  .action(async (shell?: string) => {
+    const { completionsCommand } = await import('./commands/completions');
+    completionsCommand(shell);
+  });
+
+// ─── Bulk ────────────────────────────────────────────────
+const bulkCmd = program.command('bulk').description('Bulk operations from CSV files');
+
+bulkCmd
+  .command('accounts [domain]')
+  .description('Bulk create email accounts from CSV')
+  .action(async (domain?: string) => {
+    const { bulkAccounts } = await import('./commands/bulk');
+    await bulkAccounts(domain);
+  });
+
+bulkCmd
+  .command('forwarders [domain]')
+  .description('Bulk create forwarders from CSV')
+  .action(async (domain?: string) => {
+    const { bulkForwarders } = await import('./commands/bulk');
+    await bulkForwarders(domain);
+  });
+
+// ─── Diff ────────────────────────────────────────────────
+program
+  .command('diff <file1> <file2>')
+  .description('Compare two export files — show added/removed accounts, forwarders')
+  .action(async (file1: string, file2: string) => {
+    const { diffCommand } = await import('./commands/diff');
+    diffCommand(file1, file2);
+  });
+
+// ─── Benchmark ───────────────────────────────────────────
+program
+  .command('benchmark')
+  .alias('bench')
+  .description('Test IMAP/SMTP connection speed to your MXroute server')
+  .action(async () => {
+    const { benchmarkCommand } = await import('./commands/benchmark');
+    await benchmarkCommand();
+  });
+
+// ─── Cron ────────────────────────────────────────────────
+const cronCmd = program.command('cron').description('Manage cron-based monitoring');
+
+cronCmd
+  .command('setup')
+  .description('Install a cron job for periodic monitoring')
+  .action(async () => {
+    const { cronSetup } = await import('./commands/cron');
+    await cronSetup();
+  });
+
+cronCmd
+  .command('remove')
+  .description('Remove the monitoring cron job')
+  .action(async () => {
+    const { cronRemove } = await import('./commands/cron');
+    await cronRemove();
   });
 
 // ─── Troubleshoot ────────────────────────────────────────
