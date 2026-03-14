@@ -104,6 +104,7 @@ program
   .option('-b, --body <body>', 'Email body')
   .option('-f, --from <email>', 'Sender email (defaults to configured username)')
   .option('--html', 'Treat body as raw HTML')
+  .option('--file <path>', 'Read body from file')
   .action(async (options) => {
     const { sendCommand } = await import('./commands/send');
     await sendCommand(options);
@@ -134,6 +135,14 @@ dnsCmd
   .action(async (domain?: string) => {
     const { dnsGenerate } = await import('./commands/dns');
     await dnsGenerate(domain);
+  });
+
+dnsCmd
+  .command('setup [domain]')
+  .description('Auto-configure DNS records via registrar API (Cloudflare, Porkbun, etc.)')
+  .action(async (domain?: string) => {
+    const { dnsSetup } = await import('./commands/dns-setup');
+    await dnsSetup(domain);
   });
 
 // ─── Info ────────────────────────────────────────────────
@@ -589,6 +598,51 @@ quotaCmd
   .action(async (domain?: string) => {
     const { quotaSet } = await import('./commands/quota');
     await quotaSet(domain);
+  });
+
+// ─── Whoami ──────────────────────────────────────────────
+program
+  .command('whoami')
+  .description('Quick account overview')
+  .action(async () => {
+    const { whoamiCommand } = await import('./commands/whoami');
+    await whoamiCommand();
+  });
+
+// ─── Open ────────────────────────────────────────────────
+program
+  .command('open [target]')
+  .description('Open MXroute panels in browser (panel, webmail, management)')
+  .action(async (target?: string) => {
+    const { openCommand } = await import('./commands/open');
+    await openCommand(target);
+  });
+
+// ─── Doctor ──────────────────────────────────────────────
+program
+  .command('doctor')
+  .alias('healthcheck')
+  .description('Run comprehensive health check across all domains')
+  .action(async () => {
+    const { doctorCommand } = await import('./commands/doctor');
+    await doctorCommand();
+  });
+
+// ─── Export / Import ─────────────────────────────────────
+program
+  .command('export [domain]')
+  .description('Export domain config (accounts, forwarders, autoresponders)')
+  .action(async (domain?: string) => {
+    const { exportCommand } = await import('./commands/export-import');
+    await exportCommand(domain);
+  });
+
+program
+  .command('import [file]')
+  .description('Import domain config from export file')
+  .action(async (file?: string) => {
+    const { importCommand } = await import('./commands/export-import');
+    await importCommand(file);
   });
 
 // ─── Troubleshoot ────────────────────────────────────────

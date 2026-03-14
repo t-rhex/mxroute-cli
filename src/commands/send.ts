@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
@@ -11,6 +12,7 @@ interface SendOptions {
   body?: string;
   html?: boolean;
   from?: string;
+  file?: string;
 }
 
 export async function sendCommand(options: SendOptions): Promise<void> {
@@ -49,6 +51,15 @@ export async function sendCommand(options: SendOptions): Promise<void> {
       },
     ]);
     answers.subject = res.subject;
+  }
+
+  if (options.file) {
+    if (!fs.existsSync(options.file)) {
+      console.log(theme.error(`\n  ${theme.statusIcon('fail')} File not found: ${options.file}\n`));
+      process.exit(1);
+    }
+    options.body = fs.readFileSync(options.file, 'utf-8');
+    options.html = options.file.endsWith('.html') || options.html;
   }
 
   if (!options.body) {
