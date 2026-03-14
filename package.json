@@ -1,0 +1,84 @@
+{
+  "name": "mxroute-cli",
+  "version": "0.1.0",
+  "description": "A powerful CLI for managing MXroute email hosting — send emails, verify DNS, generate records, troubleshoot, and more.",
+  "main": "dist/index.js",
+  "bin": {
+    "mxroute": "dist/index.js",
+    "mxroute-mcp": "dist/mcp.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/ --fix",
+    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run lint && npm run typecheck && npm run build && npm test",
+    "prepublishOnly": "npm run ci",
+    "postbuild": "chmod +x dist/index.js dist/mcp.js",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "mxroute",
+    "email",
+    "smtp",
+    "dns",
+    "cli",
+    "mcp",
+    "email-hosting",
+    "imap",
+    "dkim",
+    "spf",
+    "dmarc",
+    "directadmin",
+    "model-context-protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0",
+    "figures": "^3.2.0",
+    "inquirer": "^8.2.6",
+    "node-fetch": "^2.7.0",
+    "ora": "^5.4.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tsconfig/node18": "^18.2.4",
+    "@types/inquirer": "^8.2.10",
+    "@types/node": "^22.15.17",
+    "@types/node-fetch": "^2.6.13",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint": "^9.39.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.0"
+  }
+}
