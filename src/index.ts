@@ -8,12 +8,14 @@ process.on('warning', (w) => {
 import { Command } from 'commander';
 import { theme } from './utils/theme';
 
+const pkg = require('../package.json');
+
 const program = new Command();
 
 program
   .name('mxroute')
   .description('A powerful CLI for managing MXroute email hosting')
-  .version('0.1.0', '-v, --version')
+  .version(pkg.version, '-v, --version')
   .addHelpText('beforeAll', theme.banner());
 
 // ─── Setup Wizard ────────────────────────────────────────

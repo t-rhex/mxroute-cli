@@ -48,7 +48,7 @@ export const theme = {
       c('  | |  | |/  \\| | | (_) | |_| | ||  __/'),
       c('  |_|  |_/_/\\_\\_|  \\___/ \\__,_|\\__\\___|'),
       '',
-      `  ${p('Email Hosting Management CLI')}  ${m('v0.1.0')}`,
+      `  ${p('Email Hosting Management CLI')}`,
       '',
     ];
     return logo.join('\n');

@@ -61,9 +61,11 @@ function getCreds(): DACredentials {
   return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
 }
 
+const pkg = require('../package.json');
+
 const server = new McpServer({
   name: 'mxroute',
-  version: '0.1.0',
+  version: pkg.version,
 });
 
 // ─── Domain Tools ────────────────────────────────────────
