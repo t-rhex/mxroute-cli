@@ -1,3 +1,8 @@
+## [0.3.1](https://github.com/t-rhex/mxroute-cli/compare/v0.3.0...v0.3.1) (2026-03-15)
+
+### Bug Fixes
+
+* setup wizard skips already-configured steps ([a171cd8](https://github.com/t-rhex/mxroute-cli/commit/a171cd82094defed634d60f53ba532cb1811c4b8))
 ## [0.3.0](https://github.com/t-rhex/mxroute-cli/compare/v0.2.0...v0.3.0) (2026-03-14)
 
 ### Features
