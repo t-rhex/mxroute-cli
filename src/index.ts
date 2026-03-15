@@ -1308,6 +1308,26 @@ quotaPolicyCmd
     await quotaPolicyGenerate(domain);
   });
 
+// ─── Guide ───────────────────────────────────────────────
+program
+  .command('guide [topic]')
+  .alias('learn')
+  .description('Interactive command explorer with examples')
+  .action(async (topic?: string) => {
+    const { guideCommand } = await import('./commands/guide');
+    await guideCommand(topic);
+  });
+
+// ─── Suggest ─────────────────────────────────────────────
+program
+  .command('suggest <prompt>')
+  .alias('find-command')
+  .description('Find the right command from a description')
+  .action(async (prompt: string) => {
+    const { suggestCommand } = await import('./commands/suggest');
+    suggestCommand(prompt);
+  });
+
 // ─── Default action (no command) ─────────────────────────
 program.action(async () => {
   const { statusCommand } = await import('./commands/status');
