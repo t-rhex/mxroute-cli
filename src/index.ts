@@ -1328,6 +1328,36 @@ program
     suggestCommand(prompt);
   });
 
+// ─── Playbook ────────────────────────────────────────────
+const playbookCmd = program.command('playbook').description('Declarative YAML workflow runner');
+
+playbookCmd
+  .command('run <file>')
+  .description('Execute a playbook')
+  .option('--var <key=value...>', 'Set variables', (val: string, prev: string[]) => [...prev, val], [])
+  .option('--dry-run', 'Show what would be executed without running')
+  .action(async (file: string, options: any) => {
+    const { playbookRun } = await import('./commands/playbook');
+    await playbookRun(file, options);
+  });
+
+playbookCmd
+  .command('validate <file>')
+  .description('Validate a playbook YAML file')
+  .action(async (file: string) => {
+    const { playbookValidate } = await import('./commands/playbook');
+    playbookValidate(file);
+  });
+
+playbookCmd
+  .command('list')
+  .alias('ls')
+  .description('List saved playbooks')
+  .action(async () => {
+    const { playbookList } = await import('./commands/playbook');
+    playbookList();
+  });
+
 // ─── Default action (no command) ─────────────────────────
 program.action(async () => {
   const { statusCommand } = await import('./commands/status');
