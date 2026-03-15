@@ -1358,6 +1358,16 @@ playbookCmd
     playbookList();
   });
 
+// ─── Dashboard ──────────────────────────────────────────
+program
+  .command('dashboard')
+  .alias('dash')
+  .description('Live full-screen terminal dashboard')
+  .action(async () => {
+    const { dashboardCommand } = await import('./commands/dashboard');
+    await dashboardCommand();
+  });
+
 // ─── Default action (no command) ─────────────────────────
 program.action(async () => {
   const { statusCommand } = await import('./commands/status');
