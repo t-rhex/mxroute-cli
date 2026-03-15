@@ -369,15 +369,31 @@ export async function setupWizard(): Promise<void> {
     console.log('');
   }
 
-  // Step 1: What to set up
+  // Step 1: What to set up — pre-check only unconfigured items
+  const currentConfig = getConfig();
+  const hasSmtp = !!(currentConfig.username && currentConfig.password);
+  const hasAuth = !!(currentConfig.daUsername && currentConfig.daLoginKey);
+
   const { components } = await inquirer.prompt([
     {
       type: 'checkbox',
       name: 'components',
       message: 'What would you like to set up?',
       choices: [
-        { name: 'CLI Configuration (SMTP credentials for sending email)', value: 'cli', checked: true },
-        { name: 'DirectAdmin API Authentication (account management)', value: 'auth', checked: true },
+        {
+          name: hasSmtp
+            ? `CLI Configuration (SMTP) ${chalk.green('— configured')}`
+            : 'CLI Configuration (SMTP credentials for sending email)',
+          value: 'cli',
+          checked: !hasSmtp,
+        },
+        {
+          name: hasAuth
+            ? `DirectAdmin API ${chalk.green('— configured')}`
+            : 'DirectAdmin API Authentication (account management)',
+          value: 'auth',
+          checked: !hasAuth,
+        },
         { name: 'MCP Server (for AI coding tools)', value: 'mcp', checked: true },
         { name: 'AI Tool Instructions / Skills', value: 'rules', checked: true },
       ],
