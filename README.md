@@ -26,12 +26,15 @@ A comprehensive CLI and MCP server for managing [MXroute](https://mxroute.com) e
 - [Credentials](#credentials)
 - [Command Reference](#command-reference)
   - [Core](#core)
+  - [Mail Client](#mail-client)
   - [Email Management](#email-management)
   - [DNS Management](#dns-management)
   - [Email Sending](#email-sending)
   - [Spam and Security](#spam-and-security)
   - [Monitoring and Operations](#monitoring-and-operations)
   - [Data Management](#data-management)
+  - [Business Provisioning](#business-provisioning)
+  - [Utilities](#utilities)
   - [Troubleshooting](#troubleshooting)
   - [Connection Info](#connection-info)
 - [Configuration](#configuration)
@@ -47,16 +50,18 @@ A comprehensive CLI and MCP server for managing [MXroute](https://mxroute.com) e
 
 ## Features
 
-- **41 command groups, 100+ subcommands** -- manage every aspect of MXroute from the terminal
+- **60+ command groups, 140+ subcommands** -- manage every aspect of MXroute from the terminal
+- **Full mail client** -- read, compose, reply, forward, search, and manage emails via IMAP/SMTP directly from the CLI
+- **Agentic email via MCP** -- 78+ tools exposed via the Model Context Protocol, including full mailbox access for AI agents
+- **Business provisioning** -- manifest-based bulk setup, welcome emails, credential export, employee offboarding, quota policies
+- **Multi-account support** -- all mail tools accept a `profile` parameter for operating on different accounts without switching
 - **Automated DNS setup** -- configure MX, SPF, DKIM, and DMARC records via Cloudflare, Porkbun, DigitalOcean, or Namecheap APIs
-- **MCP server** -- 36 tools exposed via the Model Context Protocol for AI-assisted email management
 - **Security auditing** -- score your domains against DNS, SPF lookup count, catch-all, and forwarding loop checks
 - **Blacklist monitoring** -- check your server IP against 10 DNS blacklists
 - **Health monitoring** -- cron-friendly health checks with alert support
-- **Bulk operations** -- create accounts and forwarders from CSV files
+- **Bulk operations** -- create accounts and forwarders from CSV, bulk mark/delete/move emails
 - **Export/import** -- back up and restore your entire configuration as JSON
 - **Email webhook** -- local HTTP server that relays email through MXroute SMTP
-- **Multi-profile support** -- manage multiple MXroute accounts from one CLI
 - **Secure config** -- credentials stored with `0600` permissions in `~/.config/mxroute-cli/`
 
 ---
@@ -167,6 +172,87 @@ $ mxroute auth login
 ? DirectAdmin username: myuser
 ? Login Key: ••••••••
 ✔ Authentication successful!
+```
+
+---
+
+### Mail Client
+
+Full IMAP/SMTP email client built into the CLI -- read, compose, reply, forward, search, and manage emails without leaving the terminal. Zero external dependencies (raw TLS sockets).
+
+#### mail inbox -- View Inbox
+
+```bash
+mxroute mail inbox                     # List recent messages (default: 25)
+mxroute mail inbox -c 50               # List 50 messages
+mxroute mail inbox -f Sent             # List messages in Sent folder
+```
+
+#### mail read -- Read Email
+
+```bash
+mxroute mail read <uid>                # Read email by UID
+mxroute mail read <uid> -f Sent        # Read from specific folder
+```
+
+#### mail compose -- Send New Email
+
+```bash
+mxroute mail compose -t user@example.com -s "Subject" -b "Body"
+mxroute mail compose -t user@example.com -s "Hi" -b "Body" --cc cc@example.com --bcc bcc@example.com
+mxroute mail compose -t user@example.com -s "Hi" -b "Body" -a file.pdf -a image.png
+```
+
+#### mail reply / forward -- Respond to Email
+
+```bash
+mxroute mail reply <uid> -b "Reply body"
+mxroute mail forward <uid> -t other@example.com
+mxroute mail forward <uid> -t other@example.com -n "FYI, see below"
+```
+
+#### mail search -- Search Emails
+
+```bash
+mxroute mail search "keyword"          # Search subject, from, body
+mxroute mail search "keyword" -f Sent  # Search specific folder
+mxroute mail search "keyword" -l 100   # Limit results
+```
+
+#### mail delete / move -- Manage Messages
+
+```bash
+mxroute mail delete <uid>              # Delete message
+mxroute mail move <uid> -d Archive     # Move to folder
+```
+
+#### mail mark -- Read/Unread/Flag Status
+
+```bash
+mxroute mail mark-read <uid>           # Mark as read
+mxroute mail mark-unread <uid>         # Mark as unread
+```
+
+#### mail folders -- Folder Management
+
+```bash
+mxroute mail folders                   # List all folders
+mxroute mail folder-create "Projects"  # Create folder
+mxroute mail folder-delete "Projects"  # Delete folder
+```
+
+#### mail unread -- Quick Unread Count
+
+```bash
+mxroute mail unread                    # Unread count in INBOX
+mxroute mail unread -f "Custom Folder" # Unread count in custom folder
+```
+
+#### mail save-attachment -- Download Attachments
+
+```bash
+mxroute mail save-attachment <uid>     # Save all attachments
+mxroute mail save-attachment <uid> -i 0 -o ./downloads  # Save specific attachment
 ```
 
 ---
@@ -447,6 +533,161 @@ mxroute bulk forwarders fwd.csv       # Create forwarders from CSV
 
 ---
 
+### Business Provisioning
+
+Tools for onboarding and offboarding employees, bulk account setup, and credential distribution.
+
+#### password -- Self-Service Password Change
+
+```bash
+mxroute password                       # Change your own email password (verifies current password via IMAP first)
+```
+
+#### provision -- Manifest-Based Provisioning
+
+Provision an entire company from a single JSON manifest file.
+
+```bash
+mxroute provision plan manifest.json   # Dry-run: show what would be created or skipped
+mxroute provision apply manifest.json  # Execute: create all accounts, forwarders, and settings
+mxroute provision generate [domain]    # Generate a manifest from existing domain config
+```
+
+**Example manifest:**
+```json
+{
+  "company": "Acme Corp",
+  "domains": [{
+    "name": "acme.com",
+    "accounts": [
+      { "user": "alice", "quota": 5000 },
+      { "user": "bob", "quota": 2000 }
+    ],
+    "forwarders": [
+      { "from": "info", "to": "alice@acme.com" },
+      { "from": "support", "to": "bob@acme.com" }
+    ]
+  }]
+}
+```
+
+Accounts without a `password` field get a random 16-character password generated automatically.
+
+#### welcome-send -- Welcome Emails
+
+```bash
+mxroute welcome-send [domain]          # Send setup instructions to selected accounts
+```
+
+Sends branded HTML emails with IMAP/SMTP settings, webmail links, and client setup guides (Outlook, Apple Mail, Thunderbird, mobile).
+
+#### credentials-export -- Credential Distribution
+
+```bash
+mxroute credentials-export [domain]    # Export account info as CSV, 1Password CSV, or JSON
+```
+
+Output includes email addresses, server settings, and connection details. Files written with `0600` permissions.
+
+#### deprovision -- Employee Offboarding
+
+```bash
+mxroute deprovision [domain]           # Offboard an account: forward, auto-reply, or delete
+```
+
+Options:
+- Forward emails to another employee's account
+- Set auto-reply + forwarding (transition period)
+- Delete immediately
+
+#### quota-policy -- Role-Based Quotas
+
+```bash
+mxroute quota-policy apply [domain]    # Apply uniform or per-role quotas
+mxroute quota-policy generate [domain] # Generate sample policy file
+```
+
+**Example policy file:**
+```json
+{
+  "rules": [
+    { "pattern": "admin*", "quota": 10000 },
+    { "pattern": "*", "quota": 2000 }
+  ]
+}
+```
+
+---
+
+### Utilities
+
+#### ssl-check -- SSL/TLS Certificate Check
+
+```bash
+mxroute ssl-check                      # Check SSL certs on IMAP/SMTP/POP3/DirectAdmin ports
+mxroute ssl-check example.com          # Check specific hostname
+```
+
+#### reputation -- Domain Reputation Check
+
+```bash
+mxroute reputation                     # Check SPF/DKIM/DMARC/MX/blacklist scoring
+mxroute reputation example.com         # Check specific domain
+```
+
+#### test-delivery -- Delivery Test
+
+```bash
+mxroute test-delivery                  # Send test email and measure delivery time
+```
+
+#### rate-limit -- Rate Limit Status
+
+```bash
+mxroute rate-limit                     # Check sending rate against 400/hr limit
+```
+
+#### accounts-search -- Cross-Domain Account Search
+
+```bash
+mxroute accounts-search <query>        # Search accounts across all domains
+```
+
+#### cleanup -- Configuration Cleanup Audit
+
+```bash
+mxroute cleanup                        # Find orphaned forwarders, autoresponders, conflicts
+```
+
+#### password-audit -- Password Strength Check
+
+```bash
+mxroute password-audit                 # Audit account passwords for weak patterns
+```
+
+#### header-analyze -- Email Header Analysis
+
+```bash
+mxroute header-analyze                 # Parse and analyze email headers for routing/auth/spam info
+```
+
+#### templates -- Email Templates
+
+```bash
+mxroute templates list                 # List saved templates
+mxroute templates save <name>          # Save a new template
+mxroute templates send <name>          # Send using a template with variable substitution
+mxroute templates delete <name>        # Delete a template
+```
+
+#### usage-history -- Usage Trends
+
+```bash
+mxroute usage-history                  # Show current usage with historical trends and sparklines
+```
+
+---
+
 ### Troubleshooting
 
 #### troubleshoot / diagnose -- Interactive Wizard
@@ -534,7 +775,7 @@ mxroute config delete old              # Delete by name
 
 ## MCP Server
 
-The `mxroute-mcp` binary exposes 36 tools via the [Model Context Protocol](https://modelcontextprotocol.io), allowing AI assistants to manage your MXroute account.
+The `mxroute-mcp` binary exposes 78+ tools via the [Model Context Protocol](https://modelcontextprotocol.io), allowing AI assistants to manage your MXroute account and operate as a full email agent.
 
 ### Supported Clients
 
@@ -571,7 +812,36 @@ Add to your MCP client config:
 
 ### Available MCP Tools
 
-The MCP server provides tools for domains, email accounts, forwarders, autoresponders, catch-all, spam config, DNS records, DKIM keys, email filters, mailing lists, domain aliases, quota management, sending email, and DNS health checks.
+**Account Management:** domains, email accounts, forwarders, autoresponders, catch-all, spam config, DNS records, DKIM keys, email filters, mailing lists, domain aliases, quota management, DNS health checks.
+
+**Mail Client (IMAP/SMTP):** `list_messages`, `read_email`, `search_emails`, `send_email` (with CC/BCC), `reply_email`, `forward_email`, `delete_email`, `move_email`, `mark_email` (read/unread/flagged/unflagged), `get_unread_count`, `list_mail_folders`, `create_mail_folder`, `delete_mail_folder`, `download_attachment`.
+
+**Bulk Operations:** `bulk_mark`, `bulk_delete`, `bulk_move` -- operate on multiple messages at once.
+
+**Profile Management:** `list_profiles` -- discover configured accounts. All mail tools accept an optional `profile` parameter to target a specific account without switching the global profile.
+
+**Security & Diagnostics:** `security_audit`, `check_reputation`, `ssl_check`, `password_audit`, `health_check`, `cleanup_audit`, `validate_forwarders`, `analyze_headers`.
+
+**Utilities:** `test_delivery`, `check_rate_limit`, `search_accounts`, `export_config`, `usage_history`.
+
+**Templates:** `list_templates`, `save_template`, `send_template`, `delete_template` -- email template CRUD with `{{variable}}` substitution.
+
+**Business Provisioning:** `self_service_password`, `provision_plan`, `provision_execute`, `provision_generate`, `welcome_send`, `credentials_export`, `deprovision_account`, `quota_policy_apply` -- manifest-based bulk setup, credential distribution, employee offboarding, and role-based quotas.
+
+### Multi-Account Usage (MCP)
+
+AI agents can operate on multiple email accounts by passing the `profile` parameter:
+
+```json
+// List messages from the "work" profile
+{ "tool": "list_messages", "arguments": { "profile": "work", "count": 10 } }
+
+// Send email from the "personal" profile
+{ "tool": "send_email", "arguments": { "profile": "personal", "to": "friend@example.com", "subject": "Hi", "body": "Hello!" } }
+
+// Discover available profiles
+{ "tool": "list_profiles", "arguments": {} }
+```
 
 ---
 
@@ -695,7 +965,7 @@ npm run build
 
 ### Test Suite
 
-78 tests across 15 test files covering API, audit, benchmark, blacklist, CLI, completions, config, diff, DirectAdmin, DNS, MCP, monitor, share, theme, and webhook functionality.
+150+ tests across 24+ test files covering API, audit, benchmark, blacklist, CLI, completions, config, diff, DirectAdmin, DNS, IMAP, mail/MIME, MCP, monitor, provisioning, share, theme, and webhook functionality.
 
 ### Code Quality
 
@@ -709,10 +979,10 @@ npm run build
 ```
 src/
   index.ts              # CLI entry point (Commander.js)
-  mcp.ts                # MCP server entry point
-  commands/             # 35 command modules
-  utils/                # Shared utilities (API, config, DNS, DirectAdmin, registrars)
-tests/                  # 15 test files (Vitest)
+  mcp.ts                # MCP server entry point (78+ tools)
+  commands/             # 50 command modules (includes mail client)
+  utils/                # Shared utilities (API, config, DNS, DirectAdmin, IMAP, MIME, registrars)
+tests/                  # 24+ test files (Vitest)
 ```
 
 ### Releasing

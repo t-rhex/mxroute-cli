@@ -120,7 +120,29 @@ export async function importCommand(file?: string): Promise<void> {
   }
 
   const creds = getCreds();
-  const data: ExportData = JSON.parse(fs.readFileSync(file!, 'utf-8'));
+  let data: ExportData;
+  try {
+    const raw = JSON.parse(fs.readFileSync(file!, 'utf-8'));
+    if (!raw || typeof raw !== 'object' || !raw.domain || typeof raw.domain !== 'string') {
+      console.log(
+        theme.error(`\n  ${theme.statusIcon('fail')} Invalid export file: missing required "domain" field.\n`),
+      );
+      return;
+    }
+    data = {
+      version: raw.version || '1',
+      exportedAt: raw.exportedAt || 'unknown',
+      domain: raw.domain,
+      accounts: Array.isArray(raw.accounts) ? raw.accounts : [],
+      forwarders: Array.isArray(raw.forwarders) ? raw.forwarders : [],
+      autoresponders: Array.isArray(raw.autoresponders) ? raw.autoresponders : [],
+      catchAll: typeof raw.catchAll === 'string' ? raw.catchAll : '',
+      spamConfig: raw.spamConfig || {},
+    };
+  } catch (err: any) {
+    console.log(theme.error(`\n  ${theme.statusIcon('fail')} Failed to parse import file: ${err.message}\n`));
+    return;
+  }
 
   console.log(theme.heading(`Import: ${data.domain}`));
   console.log(theme.muted(`  Exported at: ${data.exportedAt}`));

@@ -234,7 +234,7 @@ function installMcp(tool: DetectedTool, mcpBin: string): boolean {
         theme.success(`    ${theme.statusIcon('pass')} ${tool.name}: MCP server configured (via claude mcp add)`),
       );
       return true;
-    } catch (err: any) {
+    } catch {
       // Fallback to config file approach
       console.log(
         theme.muted(`    ${theme.statusIcon('info')} ${tool.name}: claude CLI not found, trying config file...`),

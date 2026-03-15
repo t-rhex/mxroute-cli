@@ -58,7 +58,9 @@ export async function spamEnable(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to enable SpamAssassin'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`SpamAssassin enabled for ${targetDomain}`));
       console.log(theme.muted('  Score threshold: 5 | Spam folder: userspamfolder'));
@@ -86,7 +88,9 @@ export async function spamDisable(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to disable SpamAssassin'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`SpamAssassin disabled for ${targetDomain}`));
       console.log('');
@@ -176,7 +180,9 @@ export async function spamConfig(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to apply spam configuration'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`SpamAssassin configured for ${targetDomain}`));
       console.log(

@@ -12,6 +12,7 @@ import {
   getConfigPath,
 } from '../utils/config';
 import { testAuth } from '../utils/directadmin';
+import { validateEmail } from '../utils/shared';
 
 export async function configSetup(): Promise<void> {
   console.log(theme.heading('Configure MXroute CLI'));
@@ -108,7 +109,12 @@ export async function configSetup(): Promise<void> {
         type: 'input',
         name: 'manualDomain',
         message: theme.secondary('Primary domain:'),
-        validate: (input: string) => (input.includes('.') ? true : 'Enter a valid domain'),
+        validate: (input: string) => {
+          if (!input.trim()) return 'Domain is required';
+          if (!input.includes('.') || input.startsWith('.') || input.endsWith('.'))
+            return 'Enter a valid domain (e.g., example.com)';
+          return true;
+        },
       },
     ]);
     domain = manualDomain;
@@ -138,7 +144,7 @@ export async function configSetup(): Promise<void> {
         name: 'username',
         message: theme.secondary('Email address (SMTP username):'),
         default: config.username || '',
-        validate: (input: string) => (input.includes('@') ? true : 'Must be a full email address'),
+        validate: validateEmail,
       },
       {
         type: 'password',

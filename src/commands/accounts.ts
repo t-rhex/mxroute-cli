@@ -19,7 +19,8 @@ export async function accountsList(domain?: string): Promise<void> {
     spinner.stop();
 
     if (accounts.length === 0) {
-      console.log(theme.muted('  No email accounts found.\n'));
+      console.log(theme.muted('  No email accounts found.'));
+      console.log(theme.muted(`  Create one with: ${theme.bold(`mxroute accounts create ${targetDomain}`)}\n`));
       return;
     }
 
@@ -62,9 +63,15 @@ export async function accountsCreate(domain?: string): Promise<void> {
     {
       type: 'password',
       name: 'password',
-      message: theme.secondary('Password:'),
+      message: theme.secondary('Password (min 8 chars, mix of upper/lower/numbers recommended):'),
       mask: '•',
-      validate: (input: string) => (input.length >= 8 ? true : 'Password must be at least 8 characters'),
+      validate: (input: string) => {
+        if (input.length < 8) return 'Password must be at least 8 characters';
+        if (!/[A-Z]/.test(input) || !/[a-z]/.test(input) || !/[0-9]/.test(input)) {
+          return 'Weak password — use a mix of uppercase, lowercase, and numbers';
+        }
+        return true;
+      },
     },
     {
       type: 'password',
@@ -78,7 +85,12 @@ export async function accountsCreate(domain?: string): Promise<void> {
       name: 'quota',
       message: theme.secondary('Quota in MB (0 = unlimited):'),
       default: '0',
-      validate: (input: string) => (!isNaN(Number(input)) ? true : 'Must be a number'),
+      validate: (input: string) => {
+        const num = Number(input);
+        if (isNaN(num)) return 'Must be a number';
+        if (num < 0) return 'Quota cannot be negative';
+        return true;
+      },
     },
   ]);
 
@@ -103,7 +115,8 @@ export async function accountsCreate(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to create account'));
-      console.log(theme.error(`  ${result.text || result.details || JSON.stringify(result)}\n`));
+      const msg = result.text || result.details || 'Unknown error — check credentials and try again';
+      console.log(theme.error(`  ${msg}\n`));
     } else {
       spinner.succeed(chalk.green(`Created ${answers.user}@${targetDomain}`));
       console.log('');
@@ -116,6 +129,11 @@ export async function accountsCreate(domain?: string): Promise<void> {
           'Account Created',
         ),
       );
+      console.log('');
+      console.log(theme.subheading('Next steps:'));
+      console.log(theme.muted(`    mxroute share ${answers.user}@${targetDomain}    Generate setup instructions`));
+      console.log(theme.muted(`    mxroute forwarders create ${targetDomain}    Create a forwarder`));
+      console.log(theme.muted(`    mxroute autoresponder create ${targetDomain}  Set up vacation reply`));
       console.log('');
     }
   } catch (err: any) {
@@ -169,7 +187,8 @@ export async function accountsDelete(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       delSpinner.fail(chalk.red('Failed to delete account'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      const msg = result.text || result.details || 'Unknown error — check credentials and try again';
+      console.log(theme.error(`  ${msg}\n`));
     } else {
       delSpinner.succeed(chalk.green(`Deleted ${user}@${targetDomain}`));
       console.log('');
@@ -210,9 +229,15 @@ export async function accountsPasswd(domain?: string): Promise<void> {
       {
         type: 'password',
         name: 'password',
-        message: theme.secondary('New password:'),
+        message: theme.secondary('New password (min 8 chars, mix of upper/lower/numbers recommended):'),
         mask: '•',
-        validate: (input: string) => (input.length >= 8 ? true : 'Password must be at least 8 characters'),
+        validate: (input: string) => {
+          if (input.length < 8) return 'Password must be at least 8 characters';
+          if (!/[A-Z]/.test(input) || !/[a-z]/.test(input) || !/[0-9]/.test(input)) {
+            return 'Weak password — use a mix of uppercase, lowercase, and numbers';
+          }
+          return true;
+        },
       },
     ]);
 
@@ -231,7 +256,8 @@ export async function accountsPasswd(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       pwSpinner.fail(chalk.red('Failed to change password'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      const msg = result.text || result.details || 'Unknown error — check credentials and try again';
+      console.log(theme.error(`  ${msg}\n`));
     } else {
       pwSpinner.succeed(chalk.green(`Password updated for ${user}@${targetDomain}`));
       console.log('');

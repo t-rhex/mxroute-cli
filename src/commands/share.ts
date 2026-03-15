@@ -2,8 +2,17 @@ import * as fs from 'fs';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { getCreds, pickDomain } from '../utils/shared';
+import { getCreds, pickDomain, validateEmail } from '../utils/shared';
 import { listEmailAccounts } from '../utils/directadmin';
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export async function shareCommand(email?: string): Promise<void> {
   const config = getConfig();
@@ -38,7 +47,7 @@ export async function shareCommand(email?: string): Promise<void> {
           type: 'input',
           name: 'manualEmail',
           message: theme.secondary('Email address:'),
-          validate: (input: string) => (input.includes('@') ? true : 'Enter a valid email'),
+          validate: validateEmail,
         },
       ]);
       email = manualEmail;
@@ -97,13 +106,15 @@ function printTerminalConfig(email: string, server: string): void {
 
 async function generateHtml(email: string, server: string): Promise<void> {
   const filename = `email-setup-${email.replace('@', '-at-')}.html`;
+  const safeEmail = escapeHtml(email);
+  const safeServer = escapeHtml(server);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Email Setup — ${email}</title>
+<title>Email Setup — ${safeEmail}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
@@ -130,37 +141,37 @@ async function generateHtml(email: string, server: string): Promise<void> {
 <body>
 <div class="container">
   <h1>Email Setup</h1>
-  <p class="subtitle">${email}</p>
+  <p class="subtitle">${safeEmail}</p>
 
   <h2>Incoming Mail (IMAP) <span class="badge">Recommended</span></h2>
   <div class="card">
-    <div class="row"><span class="label">Server</span><span class="value">${server}</span></div>
+    <div class="row"><span class="label">Server</span><span class="value">${safeServer}</span></div>
     <div class="row"><span class="label">Port</span><span class="value highlight">993</span></div>
     <div class="row"><span class="label">Encryption</span><span class="value">SSL/TLS</span></div>
-    <div class="row"><span class="label">Username</span><span class="value">${email}</span></div>
+    <div class="row"><span class="label">Username</span><span class="value">${safeEmail}</span></div>
     <div class="row"><span class="label">Password</span><span class="value">Your email password</span></div>
   </div>
 
   <h2>Outgoing Mail (SMTP)</h2>
   <div class="card">
-    <div class="row"><span class="label">Server</span><span class="value">${server}</span></div>
+    <div class="row"><span class="label">Server</span><span class="value">${safeServer}</span></div>
     <div class="row"><span class="label">Port</span><span class="value highlight">465</span></div>
     <div class="row"><span class="label">Encryption</span><span class="value">SSL/TLS</span></div>
-    <div class="row"><span class="label">Username</span><span class="value">${email}</span></div>
+    <div class="row"><span class="label">Username</span><span class="value">${safeEmail}</span></div>
     <div class="row"><span class="label">Password</span><span class="value">Your email password</span></div>
     <div class="row"><span class="label">Authentication</span><span class="value">Required</span></div>
   </div>
 
   <h2>Webmail Access</h2>
   <div class="card">
-    <div class="row"><span class="label">Roundcube</span><span class="value"><a href="https://${server}/roundcube" style="color: #00D9FF">https://${server}/roundcube</a></span></div>
-    <div class="row"><span class="label">Crossbox</span><span class="value"><a href="https://${server}/crossbox" style="color: #00D9FF">https://${server}/crossbox</a></span></div>
+    <div class="row"><span class="label">Roundcube</span><span class="value"><a href="https://${safeServer}/roundcube" style="color: #00D9FF">https://${safeServer}/roundcube</a></span></div>
+    <div class="row"><span class="label">Crossbox</span><span class="value"><a href="https://${safeServer}/crossbox" style="color: #00D9FF">https://${safeServer}/crossbox</a></span></div>
   </div>
 
   <h2>Calendar & Contacts (CalDAV/CardDAV)</h2>
   <div class="card">
     <div class="row"><span class="label">Server</span><span class="value">https://dav.mxroute.com</span></div>
-    <div class="row"><span class="label">Username</span><span class="value">${email}</span></div>
+    <div class="row"><span class="label">Username</span><span class="value">${safeEmail}</span></div>
   </div>
 
   <h2>Alternative Ports</h2>

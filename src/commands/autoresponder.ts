@@ -26,7 +26,8 @@ export async function autoresponderList(domain?: string): Promise<void> {
     spinner.stop();
 
     if (autoresponders.length === 0) {
-      console.log(theme.muted('  No autoresponders found.\n'));
+      console.log(theme.muted('  No autoresponders found.'));
+      console.log(theme.muted(`  Create one with: ${theme.bold(`mxroute autoresponder create ${targetDomain}`)}\n`));
       return;
     }
 
@@ -99,7 +100,7 @@ export async function autoresponderCreate(domain?: string): Promise<void> {
         message: theme.secondary('CC email address (optional):'),
         validate: (input: string) => {
           if (!input.trim()) return true;
-          return input.includes('@') ? true : 'Enter a valid email address';
+          return input.includes('@') ? true : 'Enter a valid email address (e.g., user@example.com)';
         },
       },
     ]);
@@ -123,7 +124,9 @@ export async function autoresponderCreate(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to create autoresponder'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`Autoresponder created for ${user}@${targetDomain}`));
       console.log('');
@@ -179,7 +182,7 @@ export async function autoresponderEdit(domain?: string): Promise<void> {
         default: details.cc || '',
         validate: (input: string) => {
           if (!input.trim()) return true;
-          return input.includes('@') ? true : 'Enter a valid email address';
+          return input.includes('@') ? true : 'Enter a valid email address (e.g., user@example.com)';
         },
       },
     ]);
@@ -189,7 +192,9 @@ export async function autoresponderEdit(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       editSpinner.fail(chalk.red('Failed to update autoresponder'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       editSpinner.succeed(chalk.green(`Autoresponder updated for ${user}@${targetDomain}`));
       console.log('');
@@ -245,7 +250,9 @@ export async function autoresponderDelete(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       delSpinner.fail(chalk.red('Failed to delete autoresponder'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       delSpinner.succeed(chalk.green(`Deleted autoresponder for ${user}@${targetDomain}`));
       console.log('');

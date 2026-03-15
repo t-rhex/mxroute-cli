@@ -5,6 +5,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { sendEmail } from '../utils/api';
+import { validateEmail } from '../utils/shared';
 
 interface SendOptions {
   to?: string;
@@ -35,7 +36,7 @@ export async function sendCommand(options: SendOptions): Promise<void> {
         type: 'input',
         name: 'to',
         message: theme.secondary('To:'),
-        validate: (input: string) => (input.includes('@') ? true : 'Enter a valid email address'),
+        validate: validateEmail,
       },
     ]);
     answers.to = res.to;

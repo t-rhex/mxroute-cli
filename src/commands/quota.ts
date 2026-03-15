@@ -164,7 +164,9 @@ export async function quotaSet(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       setSpinner.fail(chalk.red('Failed to update quota'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       setSpinner.succeed(chalk.green(`Quota updated for ${user}@${targetDomain}`));
       console.log('');

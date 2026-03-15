@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { runFullDnsCheck } from '../utils/dns';
@@ -13,17 +14,31 @@ export async function statusCommand(): Promise<void> {
 
   // Not configured at all
   if (!config.server && !config.daUsername) {
-    console.log(
-      theme.warning(
-        `  ${theme.statusIcon('warn')} Not configured yet. Run ${theme.bold('mxroute config setup')} to get started.\n`,
-      ),
-    );
+    console.log(theme.warning(`  ${theme.statusIcon('warn')} Not configured yet.\n`));
     console.log(theme.subheading('Quick Start:'));
     console.log(theme.muted('    1. mxroute config setup     Configure your account (API key + server)'));
     console.log(theme.muted('    2. mxroute dns check        Verify DNS records'));
     console.log(theme.muted('    3. mxroute domains list     List your domains'));
     console.log(theme.muted('    4. mxroute info             View connection settings'));
     console.log('');
+
+    // Offer to run setup immediately
+    try {
+      const { runSetup } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'runSetup',
+          message: 'Would you like to run setup now?',
+          default: true,
+        },
+      ]);
+      if (runSetup) {
+        const { configSetup } = await import('./config');
+        await configSetup();
+      }
+    } catch {
+      // Non-interactive environment, just show the message
+    }
     return;
   }
 

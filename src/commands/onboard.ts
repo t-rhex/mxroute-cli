@@ -1,9 +1,8 @@
-import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { getCreds } from '../utils/shared';
+import { getCreds, validateDomain } from '../utils/shared';
 import { listDomains, createEmailAccount, getDkimKey } from '../utils/directadmin';
 import { getProvider, generateMxrouteRecords, RegistrarConfig } from '../utils/registrars';
 import { runFullDnsCheck } from '../utils/dns';
@@ -22,7 +21,7 @@ export async function onboardCommand(domain?: string): Promise<void> {
         type: 'input',
         name: 'd',
         message: theme.secondary('Domain to onboard:'),
-        validate: (input: string) => (input.includes('.') ? true : 'Enter a valid domain'),
+        validate: validateDomain,
       },
     ]);
     domain = d;
@@ -131,6 +130,7 @@ export async function onboardCommand(domain?: string): Promise<void> {
   allAccounts.push(...customAccounts);
 
   if (allAccounts.length > 0 && alreadyExists) {
+    const createdAccounts: { email: string; password: string }[] = [];
     for (const account of allAccounts) {
       const spinner = ora({ text: `Creating ${account}@${domain}...`, spinner: 'dots12', color: 'cyan' }).start();
       try {
@@ -140,14 +140,21 @@ export async function onboardCommand(domain?: string): Promise<void> {
         if (result.error && result.error !== '0') {
           spinner.warn(`${account}@${domain}: ${result.text || 'may already exist'}`);
         } else {
-          spinner.succeed(`${account}@${domain} (password: ${password})`);
+          spinner.succeed(`${account}@${domain}`);
+          createdAccounts.push({ email: `${account}@${domain}`, password });
         }
       } catch (err: any) {
         spinner.warn(`${account}@${domain}: ${err.message}`);
       }
     }
-    console.log('');
-    console.log(theme.warning(`  ${theme.statusIcon('warn')} Save the passwords above — they won't be shown again!`));
+
+    if (createdAccounts.length > 0) {
+      console.log('');
+      const credLines = createdAccounts.map((a) => theme.keyValue(a.email, a.password, 0));
+      console.log(theme.box(credLines.join('\n'), 'Created Account Passwords'));
+      console.log('');
+      console.log(theme.warning(`  ${theme.statusIcon('warn')} Save these passwords now — they won't be shown again!`));
+    }
     console.log('');
   } else if (allAccounts.length > 0 && !alreadyExists) {
     console.log(

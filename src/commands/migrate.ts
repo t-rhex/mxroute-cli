@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
-import { listEmailAccounts, createEmailAccount } from '../utils/directadmin';
+import { listEmailAccounts } from '../utils/directadmin';
 
 export async function migrateCommand(): Promise<void> {
   console.log(theme.heading('Email Migration Wizard'));

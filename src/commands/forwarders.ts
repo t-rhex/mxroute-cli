@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { listForwarders, getForwarderDestination, createForwarder, deleteForwarder } from '../utils/directadmin';
-import { getCreds, pickDomain, tableChars } from '../utils/shared';
+import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
 
 export async function forwardersList(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -19,7 +19,8 @@ export async function forwardersList(domain?: string): Promise<void> {
     spinner.stop();
 
     if (forwarders.length === 0) {
-      console.log(theme.muted('  No forwarders found.\n'));
+      console.log(theme.muted('  No forwarders found.'));
+      console.log(theme.muted(`  Create one with: ${theme.bold(`mxroute forwarders create ${targetDomain}`)}\n`));
       return;
     }
 
@@ -69,7 +70,7 @@ export async function forwardersCreate(domain?: string): Promise<void> {
       type: 'input',
       name: 'destination',
       message: theme.secondary('Forward to (email address):'),
-      validate: (input: string) => (input.includes('@') ? true : 'Enter a valid email address'),
+      validate: validateEmail,
     },
   ]);
 
@@ -94,10 +95,12 @@ export async function forwardersCreate(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to create forwarder'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`Forwarder created: ${answers.user}@${targetDomain} → ${answers.destination}`));
-      console.log('');
+      console.log(theme.muted(`\n  View all forwarders: ${theme.bold(`mxroute forwarders list ${targetDomain}`)}\n`));
     }
   } catch (err: any) {
     spinner.fail(chalk.red('Failed to create forwarder'));
@@ -150,7 +153,9 @@ export async function forwardersDelete(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       delSpinner.fail(chalk.red('Failed to delete forwarder'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       delSpinner.succeed(chalk.green(`Deleted forwarder ${user}@${targetDomain}`));
       console.log('');

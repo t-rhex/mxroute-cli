@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getCatchAll, setCatchAll, listEmailAccounts } from '../utils/directadmin';
-import { getCreds, pickDomain } from '../utils/shared';
+import { getCreds, pickDomain, validateEmail } from '../utils/shared';
 
 export async function catchallGet(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -108,7 +108,7 @@ export async function catchallSet(domain?: string): Promise<void> {
         type: 'input',
         name: 'email',
         message: theme.secondary('Forward to email address:'),
-        validate: (input: string) => (input.includes('@') ? true : 'Enter a valid email address'),
+        validate: validateEmail,
       },
     ]);
 
@@ -147,7 +147,9 @@ export async function catchallSet(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to update catch-all'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`Catch-all updated for ${targetDomain}`));
       console.log('');

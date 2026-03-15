@@ -34,11 +34,35 @@ async function daRequest(
     options.body = new URLSearchParams(body).toString();
   }
 
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (err: any) {
+    if (err.code === 'ECONNREFUSED') {
+      throw new Error(
+        `Cannot connect to ${getBaseUrl(creds.server)}. Check your server hostname and internet connection.`,
+      );
+    }
+    if (err.code === 'ENOTFOUND') {
+      throw new Error(`Server "${creds.server}" not found. Check your server hostname (e.g., tuesday, fusion).`);
+    }
+    if (err.code === 'ETIMEDOUT' || err.type === 'request-timeout') {
+      throw new Error('Connection timed out. Check your internet connection and try again.');
+    }
+    throw new Error(`Network error: ${err.message}`);
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error('Authentication failed. Check your username and login key.');
+      throw new Error('Authentication failed. Check your username and login key. Run: mxroute config setup');
+    }
+    if (response.status === 403) {
+      throw new Error(
+        'Access denied. Your login key may lack required permissions. Regenerate it at panel.mxroute.com → Login Keys.',
+      );
+    }
+    if (response.status === 404) {
+      throw new Error('API endpoint not found. Check your server hostname is correct.');
     }
     throw new Error(`DirectAdmin API error: ${response.status} ${response.statusText}`);
   }

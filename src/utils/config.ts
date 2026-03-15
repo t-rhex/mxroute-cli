@@ -25,7 +25,7 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 function ensureDir(): void {
   if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
 }
 

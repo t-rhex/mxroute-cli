@@ -11,7 +11,7 @@ import {
   addMailingListMember,
   removeMailingListMember,
 } from '../utils/directadmin';
-import { getCreds, pickDomain, tableChars } from '../utils/shared';
+import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
 
 export async function mailingListsList(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -26,7 +26,8 @@ export async function mailingListsList(domain?: string): Promise<void> {
     spinner.stop();
 
     if (lists.length === 0) {
-      console.log(theme.muted('  No mailing lists found.\n'));
+      console.log(theme.muted('  No mailing lists found.'));
+      console.log(theme.muted(`  Create one with: ${theme.bold(`mxroute lists create ${targetDomain}`)}\n`));
       return;
     }
 
@@ -91,7 +92,9 @@ export async function mailingListsCreate(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to create mailing list'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`Mailing list created: ${answers.name}@${targetDomain}`));
       console.log('');
@@ -147,7 +150,9 @@ export async function mailingListsDelete(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       delSpinner.fail(chalk.red('Failed to delete mailing list'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       delSpinner.succeed(chalk.green(`Deleted mailing list ${name}@${targetDomain}`));
       console.log('');
@@ -244,7 +249,7 @@ export async function mailingListsAddMember(domain?: string): Promise<void> {
         type: 'input',
         name: 'email',
         message: theme.secondary('Email address to add:'),
-        validate: (input: string) => (input.includes('@') ? true : 'Enter a valid email address'),
+        validate: validateEmail,
       },
     ]);
 
@@ -267,7 +272,9 @@ export async function mailingListsAddMember(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to add member'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`Added ${email} to ${name}@${targetDomain}`));
       console.log('');
@@ -341,7 +348,9 @@ export async function mailingListsRemoveMember(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       delSpinner.fail(chalk.red('Failed to remove member'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       delSpinner.succeed(chalk.green(`Removed ${email} from ${name}@${targetDomain}`));
       console.log('');

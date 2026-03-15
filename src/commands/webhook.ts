@@ -3,6 +3,8 @@ import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { sendEmail } from '../utils/api';
 
+const MAX_BODY_SIZE = 1024 * 1024; // 1MB max request body
+
 export async function webhookCommand(options: { port?: string }): Promise<void> {
   const config = getConfig();
 
@@ -30,8 +32,12 @@ export async function webhookCommand(options: { port?: string }): Promise<void> 
   console.log('');
 
   const server = http.createServer(async (req, res) => {
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS headers — restrict to localhost only
+    const origin = req.headers.origin || '';
+    const allowedOrigins = [`http://localhost:${port}`, 'http://localhost', 'http://127.0.0.1'];
+    if (allowedOrigins.some((o) => origin.startsWith(o))) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -43,7 +49,7 @@ export async function webhookCommand(options: { port?: string }): Promise<void> 
 
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', server: `${config.server}.mxrouting.net`, from: config.username }));
+      res.end(JSON.stringify({ status: 'ok' }));
       return;
     }
 
@@ -54,10 +60,20 @@ export async function webhookCommand(options: { port?: string }): Promise<void> 
     }
 
     let body = '';
+    let bodyTooLarge = false;
     req.on('data', (chunk) => {
       body += chunk;
+      if (body.length > MAX_BODY_SIZE) {
+        bodyTooLarge = true;
+        req.destroy();
+      }
     });
     req.on('end', async () => {
+      if (bodyTooLarge) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, message: 'Request body too large (max 1MB)' }));
+        return;
+      }
       try {
         const data = JSON.parse(body);
 

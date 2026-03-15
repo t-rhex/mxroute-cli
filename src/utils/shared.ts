@@ -28,7 +28,8 @@ export async function pickDomain(creds: DACredentials, domain?: string): Promise
   spinner.stop();
 
   if (domains.length === 0) {
-    console.log(theme.error(`\n  ${theme.statusIcon('fail')} No domains found.\n`));
+    console.log(theme.error(`\n  ${theme.statusIcon('fail')} No domains found on this account.`));
+    console.log(theme.muted(`  Add a domain via Control Panel (panel.mxroute.com) first.\n`));
     process.exit(1);
   }
 
@@ -44,6 +45,29 @@ export async function pickDomain(creds: DACredentials, domain?: string): Promise
   ]);
 
   return selected;
+}
+
+/**
+ * Validates an email address format.
+ * Returns true if valid, or an error message string if invalid.
+ */
+export function validateEmail(input: string): true | string {
+  if (!input.trim()) return 'Email address is required';
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(input)) return 'Enter a valid email address (e.g., user@example.com)';
+  return true;
+}
+
+/**
+ * Validates a domain name format.
+ * Returns true if valid, or an error message string if invalid.
+ */
+export function validateDomain(input: string): true | string {
+  if (!input.trim()) return 'Domain is required';
+  const domainRegex =
+    /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+  if (!domainRegex.test(input)) return 'Enter a valid domain (e.g., example.com)';
+  return true;
 }
 
 export const tableChars = {

@@ -9,18 +9,54 @@ interface CsvRow {
   [key: string]: string;
 }
 
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        fields.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
 function parseCsv(content: string): CsvRow[] {
-  const lines = content.trim().split('\n');
+  const lines = content
+    .trim()
+    .split('\n')
+    .map((l) => l.replace(/\r$/, ''));
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-  return lines.slice(1).map((line) => {
-    const values = line.split(',').map((v) => v.trim());
-    const row: CsvRow = {};
-    headers.forEach((h, i) => {
-      row[h] = values[i] || '';
+  const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
+  return lines
+    .slice(1)
+    .filter((l) => l.trim())
+    .map((line) => {
+      const values = parseCsvLine(line);
+      const row: CsvRow = {};
+      headers.forEach((h, i) => {
+        row[h] = values[i] || '';
+      });
+      return row;
     });
-    return row;
-  });
 }
 
 export async function bulkAccounts(domain?: string): Promise<void> {
@@ -57,7 +93,10 @@ export async function bulkAccounts(domain?: string): Promise<void> {
     return;
   }
 
-  console.log(theme.muted(`\n  Found ${rows.length} account(s) to create on ${targetDomain}\n`));
+  console.log(theme.muted(`\n  Found ${rows.length} account(s) to create on ${targetDomain}`));
+  console.log(
+    theme.warning(`  ${theme.statusIcon('warn')} CSV file contains plaintext passwords — delete it after use.\n`),
+  );
 
   const { proceed } = await inquirer.prompt([
     {
@@ -76,9 +115,10 @@ export async function bulkAccounts(domain?: string): Promise<void> {
   let success = 0;
   let failed = 0;
 
-  for (const row of rows) {
+  for (let idx = 0; idx < rows.length; idx++) {
+    const row = rows[idx];
     const spinner = ora({
-      text: `Creating ${row.username}@${targetDomain}...`,
+      text: `[${idx + 1}/${rows.length}] Creating ${row.username}@${targetDomain}...`,
       spinner: 'dots12',
       color: 'cyan',
     }).start();
@@ -154,9 +194,10 @@ export async function bulkForwarders(domain?: string): Promise<void> {
   let success = 0;
   let failed = 0;
 
-  for (const row of rows) {
+  for (let idx = 0; idx < rows.length; idx++) {
+    const row = rows[idx];
     const spinner = ora({
-      text: `Creating ${row.username}@${targetDomain} → ${row.destination}...`,
+      text: `[${idx + 1}/${rows.length}] Creating ${row.username}@${targetDomain} → ${row.destination}...`,
       spinner: 'dots12',
       color: 'cyan',
     }).start();

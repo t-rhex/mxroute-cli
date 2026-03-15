@@ -186,7 +186,9 @@ export async function filtersCreate(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       spinner.fail(chalk.red('Failed to create filter'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       spinner.succeed(chalk.green(`Filter "${answers.filterName}" created for ${answers.user}@${targetDomain}`));
       console.log('');
@@ -265,7 +267,9 @@ export async function filtersDelete(domain?: string): Promise<void> {
 
     if (result.error && result.error !== '0') {
       delSpinner.fail(chalk.red('Failed to delete filter'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
+      console.log(
+        theme.error(`  ${result.text || result.details || 'Unknown error — check credentials and try again'}\n`),
+      );
     } else {
       delSpinner.succeed(chalk.green(`Deleted filter "${filterName}" from ${user}@${targetDomain}`));
       console.log('');

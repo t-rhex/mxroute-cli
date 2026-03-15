@@ -1,8 +1,7 @@
-import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getConfig, setConfig } from '../utils/config';
+import { getConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
 import { listDomains, getCatchAll, setCatchAll, getDkimKey } from '../utils/directadmin';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
@@ -38,7 +37,7 @@ export async function fixCommand(): Promise<void> {
   try {
     domains = await listDomains(creds);
     domSpinner.succeed(`Found ${domains.length} domain${domains.length !== 1 ? 's' : ''}`);
-  } catch (err: any) {
+  } catch {
     domSpinner.fail('Could not fetch domains');
     return;
   }

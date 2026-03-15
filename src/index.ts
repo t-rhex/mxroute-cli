@@ -843,6 +843,323 @@ program
     await troubleshootCommand();
   });
 
+// ─── SSL Check ──────────────────────────────────────────
+program
+  .command('ssl-check [server]')
+  .alias('ssl')
+  .description('Check SSL certificate expiry, chain, and protocols')
+  .action(async (server?: string) => {
+    const { sslCheckCommand } = await import('./commands/ssl-check');
+    await sslCheckCommand(server);
+  });
+
+// ─── Test Delivery ──────────────────────────────────────
+program
+  .command('test-delivery')
+  .description('Send test email and measure delivery timing')
+  .action(async () => {
+    const { testDeliveryCommand } = await import('./commands/test-delivery');
+    await testDeliveryCommand();
+  });
+
+// ─── Rate Limit ─────────────────────────────────────────
+program
+  .command('rate-limit')
+  .alias('rate')
+  .description('Show current sending rate vs 400/hr limit')
+  .action(async () => {
+    const { rateLimitCommand } = await import('./commands/rate-limit');
+    await rateLimitCommand();
+  });
+
+// ─── Accounts Search ────────────────────────────────────
+accountsCmd
+  .command('search <query>')
+  .alias('find')
+  .description('Search accounts across all domains')
+  .action(async (query: string) => {
+    const { accountsSearch } = await import('./commands/accounts-search');
+    await accountsSearch(query);
+  });
+
+// ─── Forwarders Validate ────────────────────────────────
+forwardersCmd
+  .command('validate [domain]')
+  .alias('check')
+  .description('Check all forwarder destinations are reachable')
+  .action(async (domain?: string) => {
+    const { forwardersValidate } = await import('./commands/forwarders-validate');
+    await forwardersValidate(domain);
+  });
+
+// ─── SMTP Debug ─────────────────────────────────────────
+program
+  .command('smtp-debug')
+  .alias('smtp')
+  .description('Full SMTP session log showing EHLO/AUTH conversation')
+  .action(async () => {
+    const { smtpDebugCommand } = await import('./commands/smtp-debug');
+    await smtpDebugCommand();
+  });
+
+// ─── Backup ─────────────────────────────────────────────
+program
+  .command('backup [domain]')
+  .description('Generate IMAP mailbox backup commands (imapsync)')
+  .action(async (domain?: string) => {
+    const { backupCommand } = await import('./commands/backup');
+    await backupCommand(domain);
+  });
+
+// ─── Templates ──────────────────────────────────────────
+const templatesCmd = program.command('templates').alias('tpl').description('Email template library');
+
+templatesCmd
+  .command('list')
+  .alias('ls')
+  .description('List saved templates')
+  .action(async () => {
+    const { templatesList } = await import('./commands/templates');
+    await templatesList();
+  });
+
+templatesCmd
+  .command('save')
+  .alias('add')
+  .description('Save a new email template')
+  .action(async () => {
+    const { templatesSave } = await import('./commands/templates');
+    await templatesSave();
+  });
+
+templatesCmd
+  .command('send [name]')
+  .description('Send email using a template')
+  .action(async (name?: string) => {
+    const { templatesSend } = await import('./commands/templates');
+    await templatesSend(name);
+  });
+
+templatesCmd
+  .command('delete [name]')
+  .alias('rm')
+  .description('Delete a template')
+  .action(async (name?: string) => {
+    const { templatesDelete } = await import('./commands/templates');
+    await templatesDelete(name);
+  });
+
+// ─── Cleanup ────────────────────────────────────────────
+program
+  .command('cleanup')
+  .description('Find unused accounts, orphaned forwarders, redundant configs')
+  .action(async () => {
+    const { cleanupCommand } = await import('./commands/cleanup');
+    await cleanupCommand();
+  });
+
+// ─── Reputation ─────────────────────────────────────────
+program
+  .command('reputation [domain]')
+  .alias('rep')
+  .description('Check sender reputation (SPF, DKIM, DMARC, blacklists)')
+  .action(async (domain?: string) => {
+    const { reputationCommand } = await import('./commands/reputation');
+    await reputationCommand(domain);
+  });
+
+// ─── Usage History ──────────────────────────────────────
+program
+  .command('usage-history')
+  .alias('usage')
+  .description('Track quota usage over time with trends')
+  .action(async () => {
+    const { usageHistoryCommand } = await import('./commands/usage-history');
+    await usageHistoryCommand();
+  });
+
+// ─── Schedule ───────────────────────────────────────────
+const scheduleCmd = program.command('schedule').description('Schedule autoresponder enable/disable by date');
+
+scheduleCmd
+  .command('create [domain]')
+  .alias('add')
+  .description('Schedule an autoresponder for a date range')
+  .action(async (domain?: string) => {
+    const { scheduleCreate } = await import('./commands/schedule');
+    await scheduleCreate(domain);
+  });
+
+scheduleCmd
+  .command('list')
+  .alias('ls')
+  .description('List scheduled autoresponders')
+  .action(async () => {
+    const { scheduleList } = await import('./commands/schedule');
+    await scheduleList();
+  });
+
+scheduleCmd
+  .command('check')
+  .description('Process pending schedule changes')
+  .action(async () => {
+    const { scheduleCheck } = await import('./commands/schedule');
+    await scheduleCheck();
+  });
+
+// ─── Password Audit ─────────────────────────────────────
+program
+  .command('password-audit')
+  .alias('passwd-audit')
+  .description('Test password strength and bulk-reset weak passwords')
+  .action(async () => {
+    const { passwordAuditCommand } = await import('./commands/password-audit');
+    await passwordAuditCommand();
+  });
+
+// ─── Aliases Sync ───────────────────────────────────────
+aliasesCmd
+  .command('sync')
+  .description('Sync domain aliases across profiles/servers')
+  .action(async () => {
+    const { aliasesSyncCommand } = await import('./commands/aliases-sync');
+    await aliasesSyncCommand();
+  });
+
+// ─── Mail (Full Client) ─────────────────────────────────
+const mailCmd = program
+  .command('mail')
+  .alias('email')
+  .description('Full email client — read, compose, reply, search, manage folders');
+
+mailCmd
+  .command('inbox [folder]')
+  .alias('ls')
+  .description('List recent messages in inbox or folder')
+  .action(async (folder?: string) => {
+    const { mailInbox } = await import('./commands/mail');
+    await mailInbox(folder);
+  });
+
+mailCmd
+  .command('read <uid>')
+  .alias('show')
+  .description('Read a specific email by UID')
+  .action(async (uid: string) => {
+    const { mailRead } = await import('./commands/mail');
+    await mailRead(uid);
+  });
+
+mailCmd
+  .command('compose')
+  .alias('new')
+  .description('Compose and send email with CC/BCC/attachments')
+  .action(async () => {
+    const { mailCompose } = await import('./commands/mail');
+    await mailCompose();
+  });
+
+mailCmd
+  .command('reply <uid>')
+  .description('Reply to an email')
+  .action(async (uid: string) => {
+    const { mailReply } = await import('./commands/mail');
+    await mailReply(uid);
+  });
+
+mailCmd
+  .command('forward <uid>')
+  .alias('fwd')
+  .description('Forward an email')
+  .action(async (uid: string) => {
+    const { mailForward } = await import('./commands/mail');
+    await mailForward(uid);
+  });
+
+mailCmd
+  .command('delete <uid>')
+  .alias('rm')
+  .description('Delete an email')
+  .action(async (uid: string) => {
+    const { mailDelete } = await import('./commands/mail');
+    await mailDelete(uid);
+  });
+
+mailCmd
+  .command('search <query>')
+  .alias('find')
+  .description('Search emails by subject, sender, or body')
+  .action(async (query: string) => {
+    const { mailSearch } = await import('./commands/mail');
+    await mailSearch(query);
+  });
+
+mailCmd
+  .command('folders')
+  .description('List all mailbox folders')
+  .action(async () => {
+    const { mailFolders } = await import('./commands/mail');
+    await mailFolders();
+  });
+
+mailCmd
+  .command('folder-create [name]')
+  .description('Create a new folder')
+  .action(async (name?: string) => {
+    const { mailFolderCreate } = await import('./commands/mail');
+    await mailFolderCreate(name);
+  });
+
+mailCmd
+  .command('folder-delete [name]')
+  .description('Delete a folder')
+  .action(async (name?: string) => {
+    const { mailFolderDelete } = await import('./commands/mail');
+    await mailFolderDelete(name);
+  });
+
+mailCmd
+  .command('move <uid> [folder]')
+  .description('Move email to a different folder')
+  .action(async (uid: string, folder?: string) => {
+    const { mailMove } = await import('./commands/mail');
+    await mailMove(uid, folder);
+  });
+
+mailCmd
+  .command('save-attachment <uid>')
+  .alias('save')
+  .description('Save email attachments to disk')
+  .action(async (uid: string) => {
+    const { mailSaveAttachment } = await import('./commands/mail');
+    await mailSaveAttachment(uid);
+  });
+
+mailCmd
+  .command('unread')
+  .alias('count')
+  .description('Show unread message count')
+  .action(async () => {
+    const { mailUnread } = await import('./commands/mail');
+    await mailUnread();
+  });
+
+mailCmd
+  .command('mark-read <uid>')
+  .description('Mark a message as read')
+  .action(async (uid: string) => {
+    const { mailMarkRead } = await import('./commands/mail');
+    await mailMarkRead(uid);
+  });
+
+mailCmd
+  .command('mark-unread <uid>')
+  .description('Mark a message as unread')
+  .action(async (uid: string) => {
+    const { mailMarkUnread } = await import('./commands/mail');
+    await mailMarkUnread(uid);
+  });
+
 // ─── Quick Actions ───────────────────────────────────────
 program
   .command('test')
@@ -886,6 +1203,99 @@ program
       spinner.fail(chalk.red(err.message));
     }
     console.log('');
+  });
+
+// ─── Self-Service Password Change ────────────────────────
+program
+  .command('password')
+  .alias('passwd')
+  .description('Change your own email password (self-service, verifies current password first)')
+  .action(async () => {
+    const { selfServicePasswordChange } = await import('./commands/password');
+    await selfServicePasswordChange();
+  });
+
+// ─── Provisioning ────────────────────────────────────────
+const provisionCmd = program
+  .command('provision')
+  .description('Business provisioning — create accounts, forwarders, and DNS from a manifest');
+
+provisionCmd
+  .command('plan <manifest>')
+  .description('Dry-run: show what a manifest would create/skip')
+  .action(async (manifest: string) => {
+    const { provisionPlan } = await import('./commands/provision');
+    await provisionPlan(manifest);
+  });
+
+provisionCmd
+  .command('apply <manifest>')
+  .alias('execute')
+  .description('Execute a provisioning manifest — create all resources')
+  .action(async (manifest: string) => {
+    const { provisionExecute } = await import('./commands/provision');
+    await provisionExecute(manifest);
+  });
+
+provisionCmd
+  .command('generate [domain]')
+  .alias('export')
+  .description('Generate a manifest from existing domain configuration')
+  .action(async (domain?: string) => {
+    const { provisionGenerate } = await import('./commands/provision');
+    await provisionGenerate(domain);
+  });
+
+// ─── Welcome Emails ──────────────────────────────────────
+program
+  .command('welcome-send [domain]')
+  .alias('welcome')
+  .description('Send branded welcome emails with setup instructions to accounts')
+  .action(async (domain?: string) => {
+    const { welcomeSend } = await import('./commands/welcome-send');
+    await welcomeSend(domain);
+  });
+
+// ─── Credentials Export ──────────────────────────────────
+program
+  .command('credentials-export [domain]')
+  .alias('creds-export')
+  .description('Export account credentials as CSV, 1Password-compatible, or JSON')
+  .action(async (domain?: string) => {
+    const { credentialsExport } = await import('./commands/credentials-export');
+    await credentialsExport(domain);
+  });
+
+// ─── Deprovision (Employee Offboarding) ──────────────────
+program
+  .command('deprovision [domain]')
+  .alias('offboard')
+  .description('Offboard an employee — forward emails, set auto-reply, or delete account')
+  .action(async (domain?: string) => {
+    const { deprovisionAccount } = await import('./commands/deprovision');
+    await deprovisionAccount(domain);
+  });
+
+// ─── Quota Policy ────────────────────────────────────────
+const quotaPolicyCmd = program
+  .command('quota-policy')
+  .alias('qp')
+  .description('Apply role-based quota policies to accounts');
+
+quotaPolicyCmd
+  .command('apply [domain]')
+  .description('Apply quota policy from file or uniform value')
+  .action(async (domain?: string) => {
+    const { quotaPolicyApply } = await import('./commands/quota-policy');
+    await quotaPolicyApply(domain);
+  });
+
+quotaPolicyCmd
+  .command('generate [domain]')
+  .description('Generate a sample quota policy file from existing accounts')
+  .action(async (domain?: string) => {
+    const { quotaPolicyGenerate } = await import('./commands/quota-policy');
+    await quotaPolicyGenerate(domain);
   });
 
 // ─── Default action (no command) ─────────────────────────

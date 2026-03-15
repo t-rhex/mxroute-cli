@@ -25,7 +25,12 @@ export async function dnsSetup(domain?: string): Promise<void> {
           type: 'input',
           name: 'd',
           message: theme.secondary('Domain to configure:'),
-          validate: (input: string) => (input.includes('.') ? true : 'Enter a valid domain'),
+          validate: (input: string) => {
+            if (!input.trim()) return 'Domain is required';
+            if (!input.includes('.') || input.startsWith('.') || input.endsWith('.'))
+              return 'Enter a valid domain (e.g., example.com)';
+            return true;
+          },
         },
       ]);
       domain = d;
@@ -118,8 +123,20 @@ export async function dnsSetup(domain?: string): Promise<void> {
   }
   authSpinner.succeed(chalk.green(`${provider.name} authenticated`));
 
-  // Save registrar config
-  setConfig('registrar', { provider: providerId, apiKey: creds.apiKey, apiSecret: creds.apiSecret });
+  // Save registrar config for future use
+  const { saveRegistrar } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'saveRegistrar',
+      message: `Save ${provider.name} API credentials for future use?`,
+      default: false,
+    },
+  ]);
+
+  if (saveRegistrar) {
+    setConfig('registrar', { provider: providerId, apiKey: creds.apiKey, apiSecret: creds.apiSecret });
+    console.log(theme.muted(`  Saved to ${require('../utils/config').getConfigPath()}\n`));
+  }
 
   // Step 3: Fetch DKIM key from DirectAdmin
   let dkimKey: string | null = null;
