@@ -16,7 +16,7 @@
     "mxroute-mcp": "dist/mcp.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.dashboard.json",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "vitest run",
@@ -40,7 +40,7 @@
     "release:major": "npm version major"
   },
   "lint-staged": {
-    "*.ts": [
+    "*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ]
@@ -76,10 +76,12 @@
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
     "figures": "^3.2.0",
+    "ink": "^3.2.0",
     "inquirer": "^8.2.6",
     "js-yaml": "^4.1.1",
     "node-fetch": "^2.7.0",
     "ora": "^5.4.1",
+    "react": "^18.3.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -88,6 +90,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.17",
     "@types/node-fetch": "^2.6.13",
+    "@types/react": "^19.2.14",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@vitest/coverage-v8": "^4.1.0",
