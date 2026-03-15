@@ -42,7 +42,7 @@ export async function selfServicePasswordChange(): Promise<void> {
     await imap.logout();
     imap.disconnect();
     verifySpinner.succeed(chalk.green('Current password verified'));
-  } catch (err: any) {
+  } catch {
     verifySpinner.fail(chalk.red('Authentication failed'));
     console.log(theme.error(`  Invalid current password. Please try again.\n`));
     process.exit(1);

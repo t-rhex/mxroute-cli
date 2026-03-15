@@ -3,7 +3,6 @@ import * as path from 'path';
 import * as os from 'os';
 import { theme } from '../utils/theme';
 import { parsePlaybook, validatePlaybook, executePlaybook } from '../utils/playbook-runner';
-import { getConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
 import {
   createEmailAccount,

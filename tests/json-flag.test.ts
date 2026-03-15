@@ -21,7 +21,7 @@ function runJson(args: string): any {
 describe('--json global flag', () => {
   it('should be accepted as a valid option', () => {
     // Just verify --json doesn't cause "unknown option" error
-    const result = runJson('--version');
+    runJson('--version');
     // --version outputs version string, not JSON, but shouldn't error
   });
 

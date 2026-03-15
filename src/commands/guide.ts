@@ -1,6 +1,6 @@
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { categories, commandExamples, findCategory, findCommand, getAllCommands } from '../utils/command-registry';
+import { categories, commandExamples, findCategory, findCommand } from '../utils/command-registry';
 
 export async function guideCommand(topic?: string): Promise<void> {
   if (!topic) {
