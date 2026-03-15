@@ -225,6 +225,23 @@ function getMcpServerConfig(mcpBin: string): any {
 }
 
 function installMcp(tool: DetectedTool, mcpBin: string): boolean {
+  // Claude Code uses `claude mcp add-json` — not a config file
+  if (tool.id === 'claude-code') {
+    try {
+      const mcpConfig = JSON.stringify({ type: 'stdio', command: mcpBin, args: [] });
+      execSync(`claude mcp add-json mxroute '${mcpConfig}' --scope user`, { encoding: 'utf-8', stdio: 'pipe' });
+      console.log(
+        theme.success(`    ${theme.statusIcon('pass')} ${tool.name}: MCP server configured (via claude mcp add)`),
+      );
+      return true;
+    } catch (err: any) {
+      // Fallback to config file approach
+      console.log(
+        theme.muted(`    ${theme.statusIcon('info')} ${tool.name}: claude CLI not found, trying config file...`),
+      );
+    }
+  }
+
   if (!tool.mcpConfigPath || !tool.mcpConfigKey) {
     console.log(theme.muted(`    ${tool.name}: MCP not supported via config file`));
     return false;
