@@ -1,3 +1,8 @@
+## [0.3.2](https://github.com/t-rhex/mxroute-cli/compare/v0.3.1...v0.3.2) (2026-03-15)
+
+### Bug Fixes
+
+* setup wizard no longer auto-selects all detected tools ([2a5d854](https://github.com/t-rhex/mxroute-cli/commit/2a5d8540f8b631ede7683f0966c5493fbd6c0f3c))
 ## [0.3.1](https://github.com/t-rhex/mxroute-cli/compare/v0.3.0...v0.3.1) (2026-03-15)
 
 ### Bug Fixes
