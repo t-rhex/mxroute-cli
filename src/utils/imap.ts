@@ -100,6 +100,8 @@ export class ImapClient {
     }
   }
 
+  private commandTimeout: ReturnType<typeof setTimeout> | null = null;
+
   private sendCommand(command: string): Promise<string[]> {
     return new Promise((resolve, reject) => {
       if (!this.socket || !this.connected) {
@@ -110,14 +112,21 @@ export class ImapClient {
       const tag = this.nextTag();
       this.pendingTag = tag;
       this.pendingLines = [];
-      this.responseResolve = resolve;
+      this.responseResolve = (lines: string[]) => {
+        if (this.commandTimeout) {
+          clearTimeout(this.commandTimeout);
+          this.commandTimeout = null;
+        }
+        resolve(lines);
+      };
 
       this.socket.write(`${tag} ${command}\r\n`);
 
       // Timeout for individual commands
-      setTimeout(() => {
-        if (this.responseResolve === resolve) {
+      this.commandTimeout = setTimeout(() => {
+        if (this.responseResolve) {
           this.responseResolve = null;
+          this.commandTimeout = null;
           reject(new Error(`Command timed out: ${command.split(' ')[0]}`));
         }
       }, 30000);
@@ -457,7 +466,10 @@ export class ImapClient {
   async logout(): Promise<void> {
     try {
       if (this.socket && this.connected) {
-        await this.sendCommand('LOGOUT');
+        // Write LOGOUT directly and destroy — don't wait for response
+        // to avoid hanging on the 30s command timeout
+        const tag = this.nextTag();
+        this.socket.write(`${tag} LOGOUT\r\n`);
       }
     } catch {
       // Ignore logout errors
@@ -465,7 +477,13 @@ export class ImapClient {
   }
 
   disconnect(): void {
+    if (this.commandTimeout) {
+      clearTimeout(this.commandTimeout);
+      this.commandTimeout = null;
+    }
     if (this.socket) {
+      this.socket.setTimeout(0);
+      this.socket.removeAllListeners();
       this.socket.destroy();
       this.socket = null;
       this.connected = false;
