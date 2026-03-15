@@ -10,6 +10,7 @@ import {
   getCatchAll,
 } from '../utils/directadmin';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
+import { isJsonMode, output } from '../utils/json-output';
 
 interface AuditResult {
   category: string;
@@ -23,27 +24,37 @@ export async function auditCommand(): Promise<void> {
   const config = getConfig();
   const creds = getCreds();
 
-  console.log(theme.heading('Security Audit'));
-  console.log(theme.muted('  Scanning all domains for security issues...\n'));
+  if (!isJsonMode()) {
+    console.log(theme.heading('Security Audit'));
+    console.log(theme.muted('  Scanning all domains for security issues...\n'));
+  }
 
   const results: AuditResult[] = [];
   let score = 100;
 
   // Fetch all domains
-  const domSpinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
+  const domSpinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
   let domains: string[];
   try {
     domains = await listDomains(creds);
-    domSpinner.succeed(`Found ${domains.length} domain${domains.length !== 1 ? 's' : ''}`);
+    if (isJsonMode()) {
+      // no spinner output
+    } else {
+      domSpinner?.succeed(`Found ${domains.length} domain${domains.length !== 1 ? 's' : ''}`);
+    }
   } catch (err: any) {
-    domSpinner.fail('Could not fetch domains');
-    console.log(theme.error(`  ${err.message}\n`));
+    domSpinner?.fail('Could not fetch domains');
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
     return;
   }
 
   // Per-domain checks
   for (const domain of domains) {
-    const spinner = ora({ text: `Auditing ${domain}...`, spinner: 'dots12', color: 'cyan' }).start();
+    const spinner = isJsonMode()
+      ? null
+      : ora({ text: `Auditing ${domain}...`, spinner: 'dots12', color: 'cyan' }).start();
 
     // 1. MX Records
     const mx = await checkMxRecords(domain, config.server);
@@ -221,7 +232,25 @@ export async function auditCommand(): Promise<void> {
       // skip
     }
 
-    spinner.stop();
+    spinner?.stop();
+  }
+
+  // Clamp score
+  score = Math.max(0, Math.min(100, score));
+
+  if (isJsonMode()) {
+    output('score', score);
+    output(
+      'results',
+      results.map((r) => ({
+        domain: r.domain,
+        category: r.category,
+        check: r.check,
+        status: r.status,
+        message: r.message,
+      })),
+    );
+    return;
   }
 
   // Display results grouped by domain
@@ -236,7 +265,6 @@ export async function auditCommand(): Promise<void> {
   }
 
   // Score
-  score = Math.max(0, Math.min(100, score));
   console.log(theme.separator());
   console.log('');
 

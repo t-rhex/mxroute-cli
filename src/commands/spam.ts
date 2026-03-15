@@ -4,18 +4,27 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getSpamConfig, setSpamConfig } from '../utils/directadmin';
 import { getCreds, pickDomain } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function spamStatus(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`SpamAssassin: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`SpamAssassin: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Fetching spam configuration...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching spam configuration...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const config = await getSpamConfig(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('config', config);
+      return;
+    }
 
     const enabled = config.enabled === 'yes' || config.enabled === '1';
 
@@ -35,8 +44,8 @@ export async function spamStatus(domain?: string): Promise<void> {
     console.log(theme.muted('  Management Panel \u2192 Spam Filters'));
     console.log('');
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch spam configuration'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch spam configuration'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

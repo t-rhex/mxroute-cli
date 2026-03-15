@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
+import { isJsonMode, output } from '../utils/json-output';
 
 const RATE_LIMIT = 400; // emails per hour
 const RATE_FILE = '.mxroute-send-log.json';
@@ -44,12 +45,28 @@ export function recordSend(): void {
 export async function rateLimitCommand(): Promise<void> {
   const config = getConfig();
 
-  console.log(theme.heading('SMTP API Rate Limit Status'));
+  if (!isJsonMode()) console.log(theme.heading('SMTP API Rate Limit Status'));
 
   const log = pruneOldEntries(loadSendLog());
   const sentThisHour = log.sends.length;
   const remaining = Math.max(0, RATE_LIMIT - sentThisHour);
   const usagePercent = Math.round((sentThisHour / RATE_LIMIT) * 100);
+
+  let nextReset: string | null = null;
+  if (sentThisHour > 0) {
+    const oldest = Math.min(...log.sends);
+    nextReset = new Date(oldest + 60 * 60 * 1000).toISOString();
+  }
+
+  if (isJsonMode()) {
+    output('rateLimit', RATE_LIMIT);
+    output('sentThisHour', sentThisHour);
+    output('remaining', remaining);
+    output('usagePercent', usagePercent);
+    output('nextReset', nextReset);
+    output('server', config.server ? `${config.server}.mxrouting.net` : null);
+    return;
+  }
 
   // Build usage bar
   const barWidth = 30;
@@ -70,10 +87,8 @@ export async function rateLimitCommand(): Promise<void> {
     theme.keyValue('Usage', `[${bar}] ${usagePercent}%`, 0),
   ];
 
-  if (sentThisHour > 0) {
-    const oldest = Math.min(...log.sends);
-    const resetTime = new Date(oldest + 60 * 60 * 1000);
-    lines.push(theme.keyValue('Next Reset', resetTime.toLocaleTimeString(), 0));
+  if (nextReset) {
+    lines.push(theme.keyValue('Next Reset', new Date(nextReset).toLocaleTimeString(), 0));
   }
 
   console.log(theme.box(lines.join('\n'), 'Rate Usage'));

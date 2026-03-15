@@ -4,6 +4,7 @@ import * as dns from 'dns';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds, pickDomain } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 function resolveTxt(domain: string): Promise<string[][]> {
   return new Promise((resolve) => {
@@ -41,15 +42,17 @@ export async function reputationCommand(domain?: string): Promise<void> {
   const config = getConfig();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Sender Reputation: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Sender Reputation: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Analyzing sender reputation...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Analyzing sender reputation...', spinner: 'dots12', color: 'cyan' }).start();
 
   const checks: ReputationCheck[] = [];
 
   try {
     // 1. SPF Check
-    spinner.text = 'Checking SPF record...';
+    if (spinner) spinner.text = 'Checking SPF record...';
     const txtRecords = await resolveTxt(targetDomain);
     const spfRecord = txtRecords.flat().find((r) => r.startsWith('v=spf1'));
     if (spfRecord) {
@@ -65,7 +68,7 @@ export async function reputationCommand(domain?: string): Promise<void> {
     }
 
     // 2. DKIM Check
-    spinner.text = 'Checking DKIM...';
+    if (spinner) spinner.text = 'Checking DKIM...';
     const dkimSelectors = ['x', 'default', 'google', 'selector1', 'selector2'];
     let dkimFound = false;
     for (const selector of dkimSelectors) {
@@ -91,7 +94,7 @@ export async function reputationCommand(domain?: string): Promise<void> {
     }
 
     // 3. DMARC Check
-    spinner.text = 'Checking DMARC...';
+    if (spinner) spinner.text = 'Checking DMARC...';
     const dmarcRecords = await resolveTxt(`_dmarc.${targetDomain}`);
     const dmarcRecord = dmarcRecords.flat().find((r) => r.startsWith('v=DMARC1'));
     if (dmarcRecord) {
@@ -112,7 +115,7 @@ export async function reputationCommand(domain?: string): Promise<void> {
     }
 
     // 4. MX Records Check
-    spinner.text = 'Checking MX records...';
+    if (spinner) spinner.text = 'Checking MX records...';
     const mxRecords = await resolveMx(targetDomain);
     if (mxRecords.length > 0) {
       const mxHosts = mxRecords.map((r) => r.exchange).join(', ');
@@ -127,7 +130,7 @@ export async function reputationCommand(domain?: string): Promise<void> {
     }
 
     // 5. Reverse DNS / PTR (check server IP)
-    spinner.text = 'Checking server IP...';
+    if (spinner) spinner.text = 'Checking server IP...';
     const serverHost = config.server ? `${config.server}.mxrouting.net` : null;
     if (serverHost) {
       const serverIps = await resolveA(serverHost);
@@ -146,7 +149,7 @@ export async function reputationCommand(domain?: string): Promise<void> {
     }
 
     // 6. Check for common blacklists via DNS
-    spinner.text = 'Checking blacklists...';
+    if (spinner) spinner.text = 'Checking blacklists...';
     if (serverHost) {
       const ips = await resolveA(serverHost);
       if (ips.length > 0) {
@@ -183,7 +186,19 @@ export async function reputationCommand(domain?: string): Promise<void> {
       }
     }
 
-    spinner.stop();
+    spinner?.stop();
+
+    // Calculate overall score
+    const maxScore = 100;
+    const totalScore = checks.reduce((sum, c) => sum + c.score, 0);
+    const scorePercent = Math.min(Math.round((totalScore / maxScore) * 100), 100);
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('score', scorePercent);
+      output('checks', checks);
+      return;
+    }
 
     // Display results
     for (const check of checks) {
@@ -192,11 +207,6 @@ export async function reputationCommand(domain?: string): Promise<void> {
       console.log(theme.muted(`      ${check.detail}`));
     }
     console.log('');
-
-    // Calculate overall score
-    const maxScore = 100;
-    const totalScore = checks.reduce((sum, c) => sum + c.score, 0);
-    const scorePercent = Math.min(Math.round((totalScore / maxScore) * 100), 100);
 
     let rating: string;
     let ratingColor: (s: string) => string;
@@ -236,7 +246,7 @@ export async function reputationCommand(domain?: string): Promise<void> {
       console.log('');
     }
   } catch (err: any) {
-    spinner.fail(chalk.red('Reputation check failed'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Reputation check failed'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }

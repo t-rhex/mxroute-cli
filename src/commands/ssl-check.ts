@@ -3,6 +3,7 @@ import ora from 'ora';
 import * as tls from 'tls';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
+import { isJsonMode, output } from '../utils/json-output';
 
 interface CertInfo {
   subject: string;
@@ -79,7 +80,7 @@ export async function sslCheckCommand(server?: string): Promise<void> {
 
   const host = serverName.includes('.') ? serverName : `${serverName}.mxrouting.net`;
 
-  console.log(theme.heading(`SSL Certificate Check: ${host}`));
+  if (!isJsonMode()) console.log(theme.heading(`SSL Certificate Check: ${host}`));
 
   const ports = [
     { port: 993, label: 'IMAP (SSL)' },
@@ -88,48 +89,59 @@ export async function sslCheckCommand(server?: string): Promise<void> {
     { port: 2222, label: 'DirectAdmin' },
   ];
 
+  const sslResults: Array<{ port: number; label: string; error?: string } & Partial<CertInfo>> = [];
+
   for (const { port, label } of ports) {
-    const spinner = ora({ text: `Checking ${label} on port ${port}...`, spinner: 'dots12', color: 'cyan' }).start();
+    const spinner = isJsonMode()
+      ? null
+      : ora({ text: `Checking ${label} on port ${port}...`, spinner: 'dots12', color: 'cyan' }).start();
 
     try {
       const info = await checkCert(host, port);
+      sslResults.push({ port, label, ...info });
 
-      let statusColor = theme.success;
-      let statusText = 'Valid';
-      if (info.daysRemaining <= 0) {
-        statusColor = theme.error;
-        statusText = 'EXPIRED';
-      } else if (info.daysRemaining <= 14) {
-        statusColor = theme.warning;
-        statusText = `Expires in ${info.daysRemaining} days`;
-      } else if (info.daysRemaining <= 30) {
-        statusColor = theme.warning;
-        statusText = `Expires in ${info.daysRemaining} days`;
+      if (!isJsonMode()) {
+        let statusColor = theme.success;
+        let statusText = 'Valid';
+        if (info.daysRemaining <= 0) {
+          statusColor = theme.error;
+          statusText = 'EXPIRED';
+        } else if (info.daysRemaining <= 30) {
+          statusColor = theme.warning;
+          statusText = `Expires in ${info.daysRemaining} days`;
+        }
+
+        spinner?.succeed(statusColor(`${label} — ${statusText}`));
+
+        const lines = [
+          theme.keyValue('Subject', info.subject, 0),
+          theme.keyValue('Issuer', info.issuer, 0),
+          theme.keyValue('Valid From', info.validFrom.toLocaleDateString(), 0),
+          theme.keyValue('Valid Until', info.validTo.toLocaleDateString(), 0),
+          theme.keyValue('Days Left', statusColor(info.daysRemaining.toString()), 0),
+          theme.keyValue('Protocol', info.protocol, 0),
+          theme.keyValue('Cipher', info.cipher, 0),
+        ];
+
+        if (info.altNames.length > 0 && info.altNames.length <= 5) {
+          lines.push(theme.keyValue('Alt Names', info.altNames.join(', '), 0));
+        } else if (info.altNames.length > 5) {
+          lines.push(theme.keyValue('Alt Names', `${info.altNames.length} entries`, 0));
+        }
+
+        console.log(theme.box(lines.join('\n'), `Port ${port}`));
+        console.log('');
       }
-
-      spinner.succeed(statusColor(`${label} — ${statusText}`));
-
-      const lines = [
-        theme.keyValue('Subject', info.subject, 0),
-        theme.keyValue('Issuer', info.issuer, 0),
-        theme.keyValue('Valid From', info.validFrom.toLocaleDateString(), 0),
-        theme.keyValue('Valid Until', info.validTo.toLocaleDateString(), 0),
-        theme.keyValue('Days Left', statusColor(info.daysRemaining.toString()), 0),
-        theme.keyValue('Protocol', info.protocol, 0),
-        theme.keyValue('Cipher', info.cipher, 0),
-      ];
-
-      if (info.altNames.length > 0 && info.altNames.length <= 5) {
-        lines.push(theme.keyValue('Alt Names', info.altNames.join(', '), 0));
-      } else if (info.altNames.length > 5) {
-        lines.push(theme.keyValue('Alt Names', `${info.altNames.length} entries`, 0));
-      }
-
-      console.log(theme.box(lines.join('\n'), `Port ${port}`));
-      console.log('');
     } catch (err: any) {
-      spinner.fail(chalk.red(`${label} — ${err.message}`));
+      sslResults.push({ port, label, error: err.message });
+      if (!isJsonMode()) spinner?.fail(chalk.red(`${label} — ${err.message}`));
     }
+  }
+
+  if (isJsonMode()) {
+    output('host', host);
+    output('certificates', sslResults);
+    return;
   }
 
   // Summary
