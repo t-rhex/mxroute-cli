@@ -7,6 +7,7 @@ process.on('warning', (w) => {
 
 import { Command } from 'commander';
 import { theme } from './utils/theme';
+import { setJsonMode, flush } from './utils/json-output';
 
 const pkg = require('../package.json');
 
@@ -17,6 +18,15 @@ program
   .description('A powerful CLI for managing MXroute email hosting')
   .version(pkg.version, '-v, --version')
   .addHelpText('beforeAll', theme.banner());
+
+program.option('--json', 'Output as JSON (for scripting)');
+program.hook('preAction', (thisCommand) => {
+  const opts = thisCommand.opts();
+  if (opts.json) setJsonMode(true);
+});
+program.hook('postAction', () => {
+  flush();
+});
 
 // ─── Setup Wizard ────────────────────────────────────────
 program
