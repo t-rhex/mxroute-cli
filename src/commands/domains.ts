@@ -5,17 +5,35 @@ import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { listDomains, listDomainPointers } from '../utils/directadmin';
 import { getCreds, tableChars } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function domainsList(): Promise<void> {
   const creds = getCreds();
 
-  console.log(theme.heading('Domains'));
+  if (!isJsonMode()) console.log(theme.heading('Domains'));
 
-  const spinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode() ? null : ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const domains = await listDomains(creds);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      const domainsWithAliases = await Promise.all(
+        domains.map(async (domain) => {
+          let aliases: string[] = [];
+          try {
+            const pointers = await listDomainPointers(creds, domain);
+            aliases = Object.keys(pointers).filter((k) => k !== 'error' && k !== 'text');
+          } catch {
+            aliases = [];
+          }
+          return { domain, aliases };
+        }),
+      );
+      output('domains', domainsWithAliases);
+      return;
+    }
 
     if (domains.length === 0) {
       console.log(theme.muted('  No domains found.\n'));
@@ -44,8 +62,8 @@ export async function domainsList(): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${domains.length} domain${domains.length !== 1 ? 's' : ''} found\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch domains'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch domains'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 
@@ -63,16 +81,25 @@ export async function domainsInfo(domain?: string): Promise<void> {
     process.exit(1);
   }
 
-  console.log(theme.heading(`Domain: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Domain: ${targetDomain}`));
 
-  const spinner = ora({ text: `Fetching info for ${targetDomain}...`, spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: `Fetching info for ${targetDomain}...`, spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const [pointers] = await Promise.all([listDomainPointers(creds, targetDomain).catch(() => ({}))]);
 
-    spinner.stop();
+    spinner?.stop();
 
     const aliasList = Object.keys(pointers).filter((k) => k !== 'error' && k !== 'text');
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('server', `${creds.server}.mxrouting.net`);
+      output('aliases', aliasList);
+      return;
+    }
 
     console.log(theme.keyValue('Domain', targetDomain));
     console.log(theme.keyValue('Server', `${creds.server}.mxrouting.net`));
@@ -90,7 +117,7 @@ export async function domainsInfo(domain?: string): Promise<void> {
     console.log(theme.muted(`    mxroute dns check ${targetDomain}          Check DNS records`));
     console.log('');
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch domain info'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch domain info'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }

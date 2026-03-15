@@ -29,4 +29,35 @@ describe('--json global flag', () => {
     const output = execSync(`node ${CLI} --help`, { encoding: 'utf-8' });
     expect(output).toContain('--json');
   });
+
+  it('domains list --json should return domains array', () => {
+    const result = runJson('domains list');
+    if (result && result.success) {
+      expect(result.data).toHaveProperty('domains');
+      expect(Array.isArray(result.data.domains)).toBe(true);
+    }
+  });
+
+  it('dns check --json should return checks', () => {
+    const result = runJson('dns check andrewadhikari.com');
+    if (result && result.success) {
+      expect(result.data).toHaveProperty('checks');
+      expect(result.data).toHaveProperty('passed');
+      expect(result.data).toHaveProperty('total');
+    }
+  });
+
+  it('whoami --json should return account info', () => {
+    const result = runJson('whoami');
+    if (result && result.success) {
+      expect(result.data).toHaveProperty('server');
+    }
+  });
+
+  it('catchall get --json should return catchAll', () => {
+    const result = runJson('catchall get andrewadhikari.com');
+    if (result && result.success) {
+      expect(result.data).toHaveProperty('catchAll');
+    }
+  });
 });

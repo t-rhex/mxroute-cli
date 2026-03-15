@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { runFullDnsCheck } from '../utils/dns';
+import { isJsonMode, output, outputError } from '../utils/json-output';
 
 export async function dnsCheck(domain?: string): Promise<void> {
   const config = getConfig();
@@ -10,6 +11,10 @@ export async function dnsCheck(domain?: string): Promise<void> {
   const server = config.server;
 
   if (!targetDomain) {
+    if (isJsonMode()) {
+      outputError('MISSING_ARG', 'domain argument required');
+      return;
+    }
     const res = await inquirer.prompt([
       {
         type: 'input',
@@ -30,21 +35,31 @@ export async function dnsCheck(domain?: string): Promise<void> {
     process.exit(1);
   }
 
-  console.log(theme.heading(`DNS Health Check: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`DNS Health Check: ${targetDomain}`));
 
-  const spinner = ora({
-    text: `Checking DNS records for ${targetDomain}...`,
-    spinner: 'dots12',
-    color: 'cyan',
-  }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({
+        text: `Checking DNS records for ${targetDomain}...`,
+        spinner: 'dots12',
+        color: 'cyan',
+      }).start();
 
   try {
     const results = await runFullDnsCheck(targetDomain, server);
-    spinner.stop();
+    spinner?.stop();
 
     const passed = results.filter((r) => r.status === 'pass').length;
     const failed = results.filter((r) => r.status === 'fail').length;
     const warned = results.filter((r) => r.status === 'warn').length;
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('passed', passed);
+      output('total', results.length);
+      output('checks', results);
+      return;
+    }
 
     console.log('');
     for (const result of results) {
@@ -75,8 +90,8 @@ export async function dnsCheck(domain?: string): Promise<void> {
       );
     }
   } catch (err: any) {
-    spinner.fail('DNS check failed');
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail('DNS check failed');
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

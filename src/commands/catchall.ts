@@ -4,18 +4,42 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getCatchAll, setCatchAll, listEmailAccounts } from '../utils/directadmin';
 import { getCreds, pickDomain, validateEmail } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function catchallGet(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Catch-All: ${targetDomain}`));
+  if (!targetDomain) return;
 
-  const spinner = ora({ text: 'Fetching catch-all setting...', spinner: 'dots12', color: 'cyan' }).start();
+  if (!isJsonMode()) console.log(theme.heading(`Catch-All: ${targetDomain}`));
+
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching catch-all setting...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const value = await getCatchAll(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      let catchAll: string;
+      let description: string;
+      if (!value || value === ':blackhole:') {
+        catchAll = ':blackhole:';
+        description = 'Disabled (messages are discarded)';
+      } else if (value === ':fail:') {
+        catchAll = ':fail:';
+        description = 'Reject (sender receives bounce)';
+      } else {
+        catchAll = value;
+        description = `Forward to ${value}`;
+      }
+      output('domain', targetDomain);
+      output('catchAll', catchAll);
+      output('description', description);
+      return;
+    }
 
     if (!value || value === ':blackhole:') {
       console.log(
@@ -48,8 +72,8 @@ export async function catchallGet(domain?: string): Promise<void> {
 
     console.log('');
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch catch-all setting'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch catch-all setting'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 
