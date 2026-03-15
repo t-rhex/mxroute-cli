@@ -202,6 +202,13 @@ Run \`mxroute --help\` for the full command list. Key commands:
 // ─── Install functions ───────────────────────────────────
 
 function getMcpBinPath(): string {
+  // Try which first — gives the actual resolved path (important for nvm users)
+  try {
+    const resolved = execSync('which mxroute-mcp', { encoding: 'utf-8', stdio: 'pipe' }).trim();
+    if (resolved) return resolved;
+  } catch {
+    // Fallback to npm global bin
+  }
   try {
     const npmGlobalBin = execSync('npm bin -g', { encoding: 'utf-8', stdio: 'pipe' }).trim();
     return path.join(npmGlobalBin, 'mxroute-mcp');
