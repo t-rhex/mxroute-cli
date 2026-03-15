@@ -85,8 +85,6 @@ export class ImapClient {
     this.buffer = lines.pop() || '';
 
     for (const line of lines) {
-      if (!line) continue;
-
       if (line.startsWith(`${this.pendingTag} `)) {
         this.pendingLines.push(line);
         const resolve = this.responseResolve;
