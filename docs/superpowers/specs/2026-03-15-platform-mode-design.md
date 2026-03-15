@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-15
 **Branch:** `feat/platform-mode`
-**Status:** Approved
+**Status:** Approved (rev 2 — post-review fixes)
 
 ## Problem
 
@@ -19,15 +19,15 @@ Five new capabilities layered on top of existing commands. No existing behavior 
 
 ```
 ┌─────────────────────────────────────────────┐
-│  mxroute ai "prompt"     (natural language)  │
+│  mxroute suggest "prompt" (command finder)   │
 ├─────────────────────────────────────────────┤
-│  mxroute dashboard       (live TUI)          │
+│  mxroute dashboard        (live TUI)         │
 ├─────────────────────────────────────────────┤
-│  mxroute playbook run    (declarative YAML)  │
+│  mxroute playbook run     (declarative YAML) │
 ├─────────────────────────────────────────────┤
-│  mxroute help <topic>    (command explorer)  │
+│  mxroute guide <topic>    (command explorer) │
 ├─────────────────────────────────────────────┤
-│  --json flag             (all commands)      │
+│  --json flag              (data commands)    │
 ├─────────────────────────────────────────────┤
 │  Existing 61 commands (unchanged)            │
 └─────────────────────────────────────────────┘
@@ -48,7 +48,14 @@ New shared module `src/utils/json-output.ts`:
 let jsonMode = false;
 let jsonBuffer: any = {};
 
-export function setJsonMode(enabled: boolean) { jsonMode = enabled; }
+export function setJsonMode(enabled: boolean) {
+  jsonMode = enabled;
+  // Suppress ora/console.log on stdout when in JSON mode
+  // Redirect spinners to stderr so stdout stays clean
+  if (enabled) {
+    process.env.FORCE_COLOR = '0'; // disable chalk colors in JSON
+  }
+}
 export function isJsonMode(): boolean { return jsonMode; }
 
 export function output(key: string, data: any) {
@@ -57,12 +64,36 @@ export function output(key: string, data: any) {
   }
 }
 
-export function flush() {
+export function outputError(code: string, message: string) {
   if (jsonMode) {
+    jsonBuffer = { success: false, error: code, message };
+  }
+}
+
+export function flush() {
+  if (jsonMode && Object.keys(jsonBuffer).length > 0) {
+    // Wrap in consistent envelope
+    if (!jsonBuffer.hasOwnProperty('success')) {
+      jsonBuffer = { success: true, data: jsonBuffer };
+    }
     process.stdout.write(JSON.stringify(jsonBuffer, null, 2) + '\n');
     jsonBuffer = {};
   }
 }
+```
+
+### Stdout/stderr separation
+When `--json` is active:
+- Data output goes to `stdout` only (via `flush()`)
+- Spinners (ora), headings, and progress output are **suppressed entirely** in JSON mode
+- Errors produce structured JSON: `{ "success": false, "error": "AUTH_REQUIRED", "message": "..." }`
+- Commands that normally prompt interactively (via inquirer) **must** exit with a JSON error if required args are missing: `{ "success": false, "error": "MISSING_ARG", "message": "domain argument required" }`
+
+### Consistent envelope
+All JSON output uses the same envelope:
+```json
+{ "success": true, "data": { "domains": [...] } }
+{ "success": false, "error": "AUTH_REQUIRED", "message": "Not authenticated" }
 ```
 
 ### Global option
@@ -74,6 +105,26 @@ program.hook('preAction', (thisCommand) => {
 });
 program.hook('postAction', () => flush());
 ```
+
+### Migration pattern per command
+Each command wraps ALL visual output (spinners, headings, tables) in JSON-mode guards:
+```typescript
+export async function domainsList(): Promise<void> {
+  const creds = getCreds(); // throws structured JSON error in json mode
+  if (!isJsonMode()) console.log(theme.heading('Domains'));
+  const spinner = isJsonMode() ? null : ora({ ... }).start();
+
+  const domains = await listDomains(creds);
+  spinner?.stop();
+
+  if (isJsonMode()) {
+    output('domains', domains);
+    return;
+  }
+  // ... existing table rendering unchanged
+}
+```
+This is more invasive than a simple if-block — each command needs spinner guards and early returns. Budget accordingly.
 
 ### Target commands (~25)
 Commands that produce data output. Interactive/wizard commands are excluded.
@@ -159,11 +210,28 @@ src/commands/dashboard/
 ```
 
 ### Build consideration
-Ink uses JSX. Add `tsx` support to tsconfig:
+Ink uses JSX. Use a **separate tsconfig** to isolate JSX from the rest of the build:
+
+`tsconfig.dashboard.json` (extends base):
 ```json
-"jsx": "react",
-"jsxFactory": "React.createElement"
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "jsx": "react-jsx" },
+  "include": ["src/commands/dashboard/**/*"]
+}
 ```
+
+The main `tsconfig.json` is unchanged. Build script compiles both:
+```json
+"build": "tsc && tsc -p tsconfig.dashboard.json"
+```
+
+Update `lint-staged` to include `*.tsx`:
+```json
+"lint-staged": { "*.{ts,tsx}": ["eslint --fix", "prettier --write"] }
+```
+
+Dashboard module is lazy-loaded via `await import()` (existing pattern) so `ink` and `react` are only loaded when `mxroute dashboard` is invoked. Users who never run the dashboard pay zero cost.
 
 ### Testing
 - Unit tests for data-fetching hooks (mock directadmin responses)
@@ -233,11 +301,16 @@ const actionMap: Record<string, Function> = {
 };
 ```
 
+### Relationship to `provision` command
+The existing `provision` command handles single-domain resource declaration (accounts, forwarders, quotas from a JSON manifest). Playbooks are a **superset** — multi-step workflows that can include DNS setup, verification, notifications, and cross-domain operations. Playbooks can call provision internally via the `provision.apply` action. The provision command is NOT deprecated — it remains the simpler tool for single-domain bulk setup.
+
 ### Variable substitution
-Mustache-style `{{ var }}` replaced before execution. Variables from:
-1. `--var` CLI flags (highest priority)
-2. `vars:` block in playbook
-3. Environment variables via `${{ env.VAR }}`
+Unified `{{ var }}` syntax for all variable types. Namespaced:
+1. `{{ vars.domain }}` — from `--var` CLI flags or `vars:` block
+2. `{{ env.HOME }}` — from environment variables
+3. `{{ config.server }}` — from CLI config
+
+Priority: CLI flags > playbook vars block > environment.
 
 ### Dry-run
 `--dry-run` prints each step with resolved variables but doesn't execute.
@@ -261,14 +334,16 @@ src/utils/playbook-runner.ts   — YAML parser, variable substitution, step exec
 
 ---
 
-## Component 4: `mxroute help [topic]` (P2)
+## Component 4: `mxroute guide [topic]` (P2)
 
 ### Purpose
 Interactive command explorer with categories, examples, and related commands.
 
+> **Note:** Named `guide` instead of `help` to avoid conflict with Commander.js built-in `help` command. Alias: `mxroute learn`.
+
 ### Design
 
-Static command registry — no API calls, instant response.
+Static command registry — no API calls, instant response. Auto-verified against Commander's command tree via a test that checks every registered command has a registry entry.
 
 ```typescript
 // src/utils/command-registry.ts
@@ -299,10 +374,10 @@ const commandExamples: Record<string, { description: string; examples: string[];
 
 ### CLI interface
 ```bash
-mxroute help              # interactive category picker
-mxroute help dns          # topic deep-dive
-mxroute help send         # command examples
-mxroute help security     # category overview
+mxroute guide              # interactive category picker
+mxroute guide dns          # topic deep-dive
+mxroute guide send         # command examples
+mxroute guide security     # category overview
 ```
 
 ### File structure
@@ -318,10 +393,12 @@ src/utils/command-registry.ts   — static registry data
 
 ---
 
-## Component 5: `mxroute ai "<prompt>"` (P3)
+## Component 5: `mxroute suggest "<prompt>"` (P3)
 
 ### Purpose
 Natural language → CLI command mapping. Local keyword matcher, no LLM, works offline.
+
+> **Note:** Named `suggest` instead of `ai` to avoid setting incorrect expectations about LLM capabilities. This is a keyword matcher, not an AI. Alias: `mxroute find-command`.
 
 ### Design
 
@@ -367,11 +444,11 @@ src/commands/ai-prompt.ts   — CLI command + matcher
 
 ## Implementation Order
 
-1. **`--json` flag** — foundation, no new deps
-2. **`help explorer`** — no deps, improves discovery immediately
-3. **`ai prompt`** — no deps, builds on command registry from help
-4. **`playbook runner`** — one dep (js-yaml), composes existing functions
-5. **`dashboard`** — largest scope, new deps (ink/react)
+1. **`--json` flag** — foundation, no new deps. Includes stdout/stderr separation, error envelope, and spinner guards.
+2. **`guide` explorer** — no deps, improves discovery immediately. Creates the command registry.
+3. **`suggest` command** — no deps, builds on command registry from guide.
+4. **`playbook runner`** — one dep (js-yaml), composes existing functions. Can run in parallel with steps 2-3.
+5. **`dashboard`** — largest scope, new deps (ink/react). Separate tsconfig. Lazy-loaded.
 
 ## New Dependencies
 
@@ -387,8 +464,8 @@ src/commands/ai-prompt.ts   — CLI command + matcher
 |---|---|---|
 | `src/utils/json-output.ts` | New | JSON output wrapper |
 | `src/utils/command-registry.ts` | New | Command categories, examples, metadata |
-| `src/commands/help-explorer.ts` | New | Interactive help with categories |
-| `src/commands/ai-prompt.ts` | New | Natural language matcher |
+| `src/commands/guide.ts` | New | Interactive command explorer |
+| `src/commands/suggest.ts` | New | Natural language command finder |
 | `src/commands/playbook.ts` | New | Playbook CLI command |
 | `src/utils/playbook-runner.ts` | New | YAML parser, variable sub, executor |
 | `src/commands/dashboard.tsx` | New | Ink TUI app |
@@ -397,8 +474,8 @@ src/commands/ai-prompt.ts   — CLI command + matcher
 | `~25 command files` | Modified | Add JSON output paths |
 | `tsconfig.json` | Modified | Add JSX support for Ink |
 | `tests/json-output.test.ts` | New | JSON wrapper tests |
-| `tests/help-explorer.test.ts` | New | Help explorer tests |
-| `tests/ai-prompt.test.ts` | New | AI matcher tests |
+| `tests/guide.test.ts` | New | Guide explorer tests |
+| `tests/suggest.test.ts` | New | Suggest matcher tests |
 | `tests/playbook.test.ts` | New | Playbook runner tests |
 | `tests/dashboard.test.ts` | New | Dashboard render tests |
 
