@@ -126,7 +126,6 @@ export async function createEmailAccount(
     passwd: password,
     passwd2: password,
     quota: quota.toString(),
-    limit: '0', // 0 = unlimited sending
   });
 }
 
