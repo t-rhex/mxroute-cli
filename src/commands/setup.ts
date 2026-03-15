@@ -496,13 +496,13 @@ export async function setupWizard(): Promise<void> {
 
     const mcpBin = getMcpBinPath();
 
-    // Show detected + let user pick additional
+    // Show detected tools but let user pick which to install
     const mcpChoices = tools
       .filter((t) => t.mcpConfigPath) // only tools that support MCP config
       .map((t) => ({
         name: `${t.name}${t.detected ? chalk.green(' (detected)') : ''}`,
         value: t.id,
-        checked: t.detected,
+        checked: false,
       }));
 
     mcpChoices.push({ name: 'Show config only (manual setup)', value: 'manual', checked: false });
@@ -549,7 +549,7 @@ export async function setupWizard(): Promise<void> {
     const rulesChoices = rulesTools.map((t) => ({
       name: `${t.name}${t.detected ? chalk.green(' (detected)') : ''}`,
       value: t.id,
-      checked: t.detected,
+      checked: false,
     }));
 
     if (rulesChoices.length > 0) {
