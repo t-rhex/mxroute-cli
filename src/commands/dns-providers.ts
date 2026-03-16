@@ -18,8 +18,16 @@ export async function dnsProvidersCommand(): Promise<void> {
   console.log(theme.heading('Supported DNS Providers'));
   for (const p of providers) {
     const configured = !!providerCreds[p.id];
-    const icon = configured ? theme.statusIcon('pass') : theme.statusIcon('fail');
-    const status = configured ? theme.success('configured') : theme.muted('not configured');
+    // Check for domain-specific overrides
+    const domainOverrides = Object.keys(providerCreds).filter((k) => k.startsWith(`${p.id}:`));
+    const icon = configured || domainOverrides.length > 0 ? theme.statusIcon('pass') : theme.statusIcon('fail');
+    let status = configured ? theme.success('configured') : theme.muted('not configured');
+    if (domainOverrides.length > 0) {
+      const domains = domainOverrides.map((k) => k.split(':')[1]);
+      status += theme.muted(
+        ` + ${domains.length} domain override${domains.length > 1 ? 's' : ''}: ${domains.join(', ')}`,
+      );
+    }
     console.log(`  ${icon} ${theme.bold(p.name.padEnd(22))} ${status}`);
   }
 
@@ -158,7 +166,7 @@ function showProviderInstructions(providerId: string): void {
   }
 }
 
-export async function dnsProvidersSetup(providerId: string): Promise<void> {
+export async function dnsProvidersSetup(providerId: string, domain?: string): Promise<void> {
   const { getProvider } = await import('../providers');
   const provider = getProvider(providerId);
   if (!provider) {
@@ -170,7 +178,34 @@ export async function dnsProvidersSetup(providerId: string): Promise<void> {
 
   const inquirer = (await import('inquirer')).default;
 
-  console.log(theme.heading(`Configure ${provider.name}`));
+  // Ask if this is for a specific domain or all domains
+  if (!domain) {
+    const { scope } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'scope',
+        message: `Configure ${provider.name} credentials for:`,
+        choices: [
+          { name: 'All domains (default)', value: 'all' },
+          { name: 'A specific domain only', value: 'specific' },
+        ],
+      },
+    ]);
+    if (scope === 'specific') {
+      const { domainInput } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'domainInput',
+          message: theme.secondary('Domain:'),
+          validate: (input: string) => (input.includes('.') ? true : 'Enter a valid domain'),
+        },
+      ]);
+      domain = domainInput;
+    }
+  }
+
+  const scopeLabel = domain ? ` (for ${domain})` : '';
+  console.log(theme.heading(`Configure ${provider.name}${scopeLabel}`));
 
   // Show provider-specific setup instructions
   showProviderInstructions(provider.id);
@@ -198,21 +233,23 @@ export async function dnsProvidersSetup(providerId: string): Promise<void> {
   const authOk = await provider.authenticate(answers);
   if (authOk) {
     spinner.succeed(`${provider.name} authenticated`);
-    // Save to config
+    // Save to config — use domain-specific key if a domain was specified
+    const configKey = domain ? `${provider.id}:${domain}` : provider.id;
     const config = getConfig() as any;
     const providers = config.providers || {};
-    providers[provider.id] = answers;
+    providers[configKey] = answers;
     setConfig('providers', providers);
-    console.log(theme.success(`\n  ${theme.statusIcon('pass')} Credentials saved for ${provider.name}\n`));
+    console.log(theme.success(`\n  ${theme.statusIcon('pass')} Credentials saved for ${provider.name}${scopeLabel}\n`));
   } else {
     // Check if this is a detection-only provider using the explicit flag
     const isDetectionOnly = provider.detectionOnly === true;
     if (isDetectionOnly) {
       spinner.stop();
       // Save credentials anyway for future full support
+      const configKey2 = domain ? `${provider.id}:${domain}` : provider.id;
       const config = getConfig() as any;
       const providers = config.providers || {};
-      providers[provider.id] = answers;
+      providers[configKey2] = answers;
       setConfig('providers', providers);
       console.log(
         theme.warning(

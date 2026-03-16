@@ -37,12 +37,22 @@ export function migrateConfig(): void {
 }
 
 /**
- * Load credentials for a given provider from config.providers[providerId].
+ * Load credentials for a given provider.
+ * Checks domain-specific override first: config.providers["cloudflare:example.com"]
+ * Then falls back to default: config.providers["cloudflare"]
  */
-export function getProviderCreds(providerId: string): ProviderCredentials | null {
+export function getProviderCreds(providerId: string, domain?: string): ProviderCredentials | null {
   migrateConfig();
   const config = getConfig() as any;
   const providers = config.providers || {};
+
+  // Check domain-specific override first
+  if (domain) {
+    const domainKey = `${providerId}:${domain}`;
+    if (providers[domainKey]) return providers[domainKey];
+  }
+
+  // Fall back to default provider credentials
   return providers[providerId] || null;
 }
 
@@ -87,7 +97,7 @@ export async function routeDnsAdd(domain: string, record: DnsRecord): Promise<Ro
   // Try to detect a known registrar provider
   const provider = detectProvider(nameservers);
   if (provider) {
-    const creds = getProviderCreds(provider.id);
+    const creds = getProviderCreds(provider.id, domain);
     if (creds) {
       const validationError = provider.validateCredentials(creds);
       if (validationError) {
@@ -193,7 +203,7 @@ export async function routeDnsDelete(domain: string, record: DnsRecord): Promise
 
   const provider = detectProvider(nameservers);
   if (provider) {
-    const creds = getProviderCreds(provider.id);
+    const creds = getProviderCreds(provider.id, domain);
     if (creds) {
       const validationError = provider.validateCredentials(creds);
       if (validationError) {
@@ -296,7 +306,7 @@ export async function routeDnsList(domain: string): Promise<RouteResult & { reco
 
   const provider = detectProvider(nameservers);
   if (provider) {
-    const creds = getProviderCreds(provider.id);
+    const creds = getProviderCreds(provider.id, domain);
     if (creds) {
       const validationError = provider.validateCredentials(creds);
       if (validationError) {
