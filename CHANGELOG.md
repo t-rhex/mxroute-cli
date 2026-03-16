@@ -1,3 +1,8 @@
+## [1.1.0](https://github.com/t-rhex/mxroute-cli/compare/v1.0.3...v1.1.0) (2026-03-16)
+
+### Features
+
+* platform mode — json, guide, suggest, playbook, dashboard ([10f8270](https://github.com/t-rhex/mxroute-cli/commit/10f8270d7a740b7050f3293e56af0beb2d66eb98))
 ## [0.3.2](https://github.com/t-rhex/mxroute-cli/compare/v0.3.1...v0.3.2) (2026-03-15)
 
 ### Bug Fixes
