@@ -52,6 +52,7 @@ import {
 import { runFullDnsCheck, checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from './utils/dns';
 import { testAuth } from './utils/directadmin';
 import { routeDnsAdd, routeDnsDelete } from './utils/dns-router';
+import { listProviders } from './providers';
 
 function getCreds(): DACredentials {
   const config = getConfig();
@@ -3193,6 +3194,22 @@ server.tool(
     return { content: [{ type: 'text', text: JSON.stringify({ domain, results, total: results.length }, null, 2) }] };
   },
 );
+
+// ─── DNS Provider Tools ──────────────────────────────────
+
+server.tool('list_dns_providers', 'List supported DNS providers with credential status', {}, async () => {
+  const config = getConfig() as any;
+  const providers = listProviders();
+  const providerCreds = config.providers || {};
+  const result = providers.map((p) => ({
+    id: p.id,
+    name: p.name,
+    configured: !!providerCreds[p.id],
+    credentialFields: p.credentialFields.map((f) => f.label),
+    nsPatterns: p.nsPatterns,
+  }));
+  return { content: [{ type: 'text' as const, text: JSON.stringify({ providers: result }, null, 2) }] };
+});
 
 // ─── Start server ────────────────────────────────────────
 
