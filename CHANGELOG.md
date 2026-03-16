@@ -1,3 +1,8 @@
+## [1.2.0](https://github.com/t-rhex/mxroute-cli/compare/v1.1.3...v1.2.0) (2026-03-16)
+
+### Features
+
+* DNS provider routing (9 providers), sending account refactor, UX gap fixes ([8924e7c](https://github.com/t-rhex/mxroute-cli/commit/8924e7c772f1f01bd3bac8148dffac2e4954832d))
 ## [1.1.3](https://github.com/t-rhex/mxroute-cli/compare/v1.1.2...v1.1.3) (2026-03-16)
 
 ### Bug Fixes
