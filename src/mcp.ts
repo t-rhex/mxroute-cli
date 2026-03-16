@@ -33,8 +33,6 @@ import {
   getSpamConfig,
   setSpamConfig,
   listDnsRecords,
-  addDnsRecord,
-  deleteDnsRecord,
   getDkimKey,
   listEmailFilters,
   createEmailFilter,
@@ -51,15 +49,9 @@ import {
   getQuotaUsage,
   getUserConfig,
 } from './utils/directadmin';
-import {
-  runFullDnsCheck,
-  checkSpfRecord,
-  checkDkimRecord,
-  checkDmarcRecord,
-  checkMxRecords,
-  checkNameservers,
-} from './utils/dns';
+import { runFullDnsCheck, checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from './utils/dns';
 import { testAuth } from './utils/directadmin';
+import { routeDnsAdd, routeDnsDelete } from './utils/dns-router';
 
 function getCreds(): DACredentials {
   const config = getConfig();
@@ -519,7 +511,7 @@ server.tool(
 
 server.tool(
   'add_dns_record',
-  'Add a DNS record. WARNING: Only works if MXroute is the authoritative nameserver. For domains using Cloudflare/other DNS, this adds to DirectAdmin only and has no real-world effect. Check nameservers first.',
+  'Add a DNS record. Automatically routes to the correct DNS provider based on nameservers.',
   {
     domain: z.string().describe('Domain name'),
     type: z.string().describe('Record type (A, AAAA, CNAME, MX, TXT, SRV)'),
@@ -528,44 +520,12 @@ server.tool(
     priority: z.number().optional().describe('Priority (for MX records)'),
   },
   async ({ domain, type, name, value, priority }) => {
-    const creds = getCreds();
-    const config = getConfig();
-    // Check nameserver authority
-    const nsInfo = await checkNameservers(domain, config.server);
-    if (!nsInfo.isMxrouteAuthority) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: JSON.stringify(
-              {
-                success: false,
-                warning: 'DNS_NOT_MANAGED_BY_MXROUTE',
-                message: `${domain} uses ${nsInfo.provider || 'external'} nameservers (${nsInfo.nameservers.join(', ')}). Adding records to DirectAdmin will have NO effect. Use your DNS provider's API or dashboard instead.`,
-                nameservers: nsInfo.nameservers,
-                detectedProvider: nsInfo.provider,
-                suggestion: nsInfo.provider
-                  ? `Use the ${nsInfo.provider} API or run 'mxroute dns setup ${domain}' to configure DNS via registrar.`
-                  : `Add records directly in your DNS provider's dashboard.`,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
-    }
-    const result = await addDnsRecord(creds, domain, type, name, value, priority);
-    const success = !result.error || result.error === '0';
+    const result = await routeDnsAdd(domain, { type, name, value, priority });
     return {
       content: [
         {
           type: 'text' as const,
-          text: JSON.stringify(
-            { success, message: success ? `Added ${type} record` : result.text || 'Failed' },
-            null,
-            2,
-          ),
+          text: JSON.stringify(result, null, 2),
         },
       ],
     };
@@ -574,7 +534,7 @@ server.tool(
 
 server.tool(
   'delete_dns_record',
-  'Delete a DNS record. WARNING: Only works if MXroute is the authoritative nameserver. For domains using Cloudflare/other DNS, this deletes from DirectAdmin only.',
+  'Delete a DNS record. Automatically routes to the correct DNS provider based on nameservers.',
   {
     domain: z.string().describe('Domain name'),
     type: z.string().describe('Record type'),
@@ -582,36 +542,12 @@ server.tool(
     value: z.string().describe('Record value'),
   },
   async ({ domain, type, name, value }) => {
-    const creds = getCreds();
-    const config = getConfig();
-    const nsInfo = await checkNameservers(domain, config.server);
-    if (!nsInfo.isMxrouteAuthority) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: JSON.stringify(
-              {
-                success: false,
-                warning: 'DNS_NOT_MANAGED_BY_MXROUTE',
-                message: `${domain} uses ${nsInfo.provider || 'external'} nameservers. Deleting records from DirectAdmin will have NO effect on live DNS.`,
-                nameservers: nsInfo.nameservers,
-                detectedProvider: nsInfo.provider,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
-    }
-    const result = await deleteDnsRecord(creds, domain, type, name, value);
-    const success = !result.error || result.error === '0';
+    const result = await routeDnsDelete(domain, { type, name, value });
     return {
       content: [
         {
           type: 'text' as const,
-          text: JSON.stringify({ success, message: success ? 'Record deleted' : result.text || 'Failed' }, null, 2),
+          text: JSON.stringify(result, null, 2),
         },
       ],
     };
