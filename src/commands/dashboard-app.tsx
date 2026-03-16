@@ -1,11 +1,9 @@
-#!/usr/bin/env node
 import React, { useState, useEffect } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
 import { getConfig } from '../utils/config';
 import { listDomains, listEmailAccounts, listForwarders, getQuotaUsage } from '../utils/directadmin';
 import { runFullDnsCheck, DnsCheckResult } from '../utils/dns';
 
-// Types
 interface DomainData {
   name: string;
   accounts: number;
@@ -13,82 +11,64 @@ interface DomainData {
   dns: DnsCheckResult[];
 }
 
-// StatusBar component
 function StatusBar({ server, profile, diskUsed }: { server: string; profile: string; diskUsed: string }) {
   return (
-    <Box borderStyle="single" borderColor="blue" paddingX={1}>
-      <Box width="50%">
+    <Box borderStyle="single" borderColor="blue" paddingX={1} flexDirection="row">
+      <Text>
         <Text color="cyan">Server: </Text>
         <Text bold>{server}.mxrouting.net</Text>
-      </Box>
-      <Box width="50%">
+        <Text>{'  '}</Text>
         <Text color="cyan">Profile: </Text>
         <Text bold>{profile}</Text>
-        <Text> Disk: </Text>
+        <Text>{'  '}</Text>
+        <Text color="cyan">Disk: </Text>
         <Text bold>{diskUsed}</Text>
-      </Box>
+      </Text>
     </Box>
   );
 }
 
-// DomainTable component
 function DomainTable({ domains }: { domains: DomainData[] }) {
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Box>
-        <Text bold color="blue">
-          {pad('Domain', 22)}
-        </Text>
-        <Text bold color="blue">
-          {pad('MX', 5)}
-        </Text>
-        <Text bold color="blue">
-          {pad('SPF', 5)}
-        </Text>
-        <Text bold color="blue">
-          {pad('DKIM', 6)}
-        </Text>
-        <Text bold color="blue">
-          {pad('DMARC', 7)}
-        </Text>
-        <Text bold color="blue">
-          {pad('Accts', 7)}
-        </Text>
-        <Text bold color="blue">
-          Fwds
-        </Text>
-      </Box>
+      <Text bold color="blue">
+        {pad('Domain', 22)}
+        {pad('MX', 5)}
+        {pad('SPF', 5)}
+        {pad('DKIM', 6)}
+        {pad('DMARC', 7)}
+        {pad('Accts', 7)}
+        {'Fwds'}
+      </Text>
       {domains.map((d, i) => {
         const mx = d.dns.find((r) => r.type === 'MX');
         const spf = d.dns.find((r) => r.type === 'SPF');
         const dkim = d.dns.find((r) => r.type === 'DKIM');
         const dmarc = d.dns.find((r) => r.type === 'DMARC');
         return (
-          <Box key={i}>
-            <Text>{pad(d.name, 22)}</Text>
-            <Text>{statusIcon(mx?.status)} </Text>
-            <Text> {statusIcon(spf?.status)} </Text>
-            <Text> {statusIcon(dkim?.status)}</Text>
-            <Text> {statusIcon(dmarc?.status)} </Text>
-            <Text> {pad(String(d.accounts), 7)}</Text>
-            <Text>{d.forwarders}</Text>
-          </Box>
+          <Text key={i}>
+            {pad(d.name, 22)}
+            {pad(statusIcon(mx?.status), 5)}
+            {pad(statusIcon(spf?.status), 5)}
+            {pad(statusIcon(dkim?.status), 6)}
+            {pad(statusIcon(dmarc?.status), 7)}
+            {pad(String(d.accounts), 7)}
+            {String(d.forwarders)}
+          </Text>
         );
       })}
     </Box>
   );
 }
 
-// BottomBar component
 function BottomBar() {
   return (
     <Box borderStyle="single" borderColor="gray" paddingX={1}>
-      <Text color="gray">[r]efresh [q]uit</Text>
+      <Text color="gray">{'[r]efresh  [q]uit'}</Text>
     </Box>
   );
 }
 
-// Helper functions
 function pad(str: string, width: number): string {
   return str.padEnd(width);
 }
@@ -106,7 +86,6 @@ function statusIcon(status?: string): string {
   }
 }
 
-// Main App
 function App() {
   const { exit } = useApp();
   const [loading, setLoading] = useState(true);
@@ -130,12 +109,7 @@ function App() {
         return;
       }
 
-      const creds = {
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
-      };
-
+      const creds = { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
       const [domainNames, usage] = await Promise.all([listDomains(creds), getQuotaUsage(creds).catch(() => ({}))]);
 
       setDiskUsed(`${usage.quota || usage.disk || '?'} MB`);
@@ -147,12 +121,7 @@ function App() {
           listForwarders(creds, name).catch(() => []),
           runFullDnsCheck(name, config.server).catch(() => []),
         ]);
-        domainData.push({
-          name,
-          accounts: accounts.length,
-          forwarders: forwarders.length,
-          dns,
-        });
+        domainData.push({ name, accounts: accounts.length, forwarders: forwarders.length, dns });
       }
 
       setDomains(domainData);
@@ -170,19 +139,16 @@ function App() {
   }, []);
 
   useInput((input, key) => {
-    if (input === 'q' || (key.ctrl && input === 'c')) {
-      exit();
-    }
-    if (input === 'r') {
-      fetchData();
-    }
+    if (input === 'q' || (key.ctrl && input === 'c')) exit();
+    if (input === 'r') fetchData();
   });
 
   if (error) {
     return (
       <Box flexDirection="column" padding={1}>
         <Text color="red" bold>
-          Error: {error}
+          {'Error: '}
+          {error}
         </Text>
         <BottomBar />
       </Box>
@@ -191,16 +157,21 @@ function App() {
 
   return (
     <Box flexDirection="column">
-      <Box paddingX={1} paddingY={0}>
+      <Box paddingX={1}>
         <Text bold color="cyan">
-          MXroute Dashboard
+          {'MXroute Dashboard'}
         </Text>
-        {lastRefresh && <Text color="gray"> Last refresh: {lastRefresh}</Text>}
+        {lastRefresh ? (
+          <Text color="gray">
+            {'  Last refresh: '}
+            {lastRefresh}
+          </Text>
+        ) : null}
       </Box>
       <StatusBar server={server} profile={profile} diskUsed={diskUsed} />
       {loading ? (
         <Box padding={1}>
-          <Text color="yellow">Loading...</Text>
+          <Text color="yellow">{'Loading...'}</Text>
         </Box>
       ) : (
         <DomainTable domains={domains} />
