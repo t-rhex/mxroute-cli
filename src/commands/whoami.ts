@@ -66,6 +66,8 @@ export async function whoamiCommand(): Promise<void> {
       console.log(theme.keyValue('SMTP Account', config.username));
     }
 
+    console.log(theme.muted('  For full dashboard:  mxroute status'));
+    console.log(theme.muted('  For health check:    mxroute doctor'));
     console.log('');
   }
 }

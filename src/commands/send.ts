@@ -3,9 +3,9 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
 import { sendEmail } from '../utils/api';
 import { validateEmail } from '../utils/shared';
+import { getSendingAccount } from '../utils/sending-account';
 
 interface SendOptions {
   to?: string;
@@ -19,14 +19,7 @@ interface SendOptions {
 export async function sendCommand(options: SendOptions): Promise<void> {
   console.log(theme.heading('Send Email'));
 
-  const config = getConfig();
-
-  if (!config.server || !config.username || !config.password) {
-    console.log(
-      theme.error(`  ${theme.statusIcon('fail')} Not configured. Run ${theme.bold('mxroute config smtp')} first.\n`),
-    );
-    process.exit(1);
-  }
+  const account = await getSendingAccount();
 
   const answers: any = {};
 
@@ -77,7 +70,7 @@ export async function sendCommand(options: SendOptions): Promise<void> {
   const to = options.to || answers.to;
   const subject = options.subject || answers.subject;
   const body = options.body || answers.body;
-  const from = options.from || config.username;
+  const from = options.from || account.email;
 
   console.log('');
   console.log(
@@ -114,9 +107,9 @@ export async function sendCommand(options: SendOptions): Promise<void> {
 
   try {
     const result = await sendEmail({
-      server: `${config.server}.mxrouting.net`,
-      username: config.username,
-      password: config.password,
+      server: account.server,
+      username: account.email,
+      password: account.password,
       from,
       to,
       subject,

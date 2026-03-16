@@ -3,12 +3,10 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { listDnsRecords, addDnsRecord, deleteDnsRecord, getDkimKey } from '../utils/directadmin';
+import { getDkimKey } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
-import { checkNameservers } from '../utils/dns';
-import { getConfig } from '../utils/config';
-import { getProvider, RegistrarConfig } from '../utils/registrars';
+import { routeDnsAdd, routeDnsDelete, routeDnsList } from '../utils/dns-router';
 
 interface DnsRecord {
   type: string;
@@ -135,10 +133,15 @@ export async function dnsapiList(domain?: string): Promise<void> {
       }).start();
 
   try {
-    const raw = await listDnsRecords(creds, targetDomain);
+    const routeResult = await routeDnsList(targetDomain);
     spinner?.stop();
 
-    const records = parseRecords(raw);
+    if (!routeResult.success) {
+      if (!isJsonMode()) console.log(theme.error(`  ${routeResult.message}\n`));
+      return;
+    }
+
+    const records = parseRecords(routeResult.records || []);
 
     if (isJsonMode()) {
       output('domain', targetDomain);
@@ -198,45 +201,6 @@ export async function dnsapiList(domain?: string): Promise<void> {
 export async function dnsapiAdd(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
-  const config = getConfig();
-
-  // Check if MXroute is the DNS authority
-  const nsInfo = await checkNameservers(targetDomain, config.server);
-  if (!nsInfo.isMxrouteAuthority) {
-    console.log(theme.warning(`\n  ${theme.statusIcon('warn')} ${targetDomain} DNS is NOT managed by MXroute.`));
-    console.log(theme.muted(`  Nameservers: ${nsInfo.nameservers.join(', ')}`));
-    if (nsInfo.provider) {
-      console.log(theme.muted(`  DNS provider detected: ${theme.bold(nsInfo.provider)}`));
-    }
-    console.log(theme.warning(`\n  Adding records to DirectAdmin will have NO effect.`));
-
-    // Try to use registrar API instead
-    const registrar = (config as any).registrar;
-    if (registrar && nsInfo.provider && registrar.provider === nsInfo.provider) {
-      console.log(
-        theme.success(`\n  ${theme.statusIcon('pass')} You have ${nsInfo.provider} configured. Redirecting...\n`),
-      );
-      const { dnsSetup } = await import('./dns-setup');
-      await dnsSetup(targetDomain);
-      return;
-    }
-
-    console.log(theme.info(`\n  ${theme.statusIcon('info')} To manage DNS records:`));
-    console.log(
-      theme.muted(`  - Run ${theme.bold(`mxroute dns setup ${targetDomain}`)} to configure via registrar API`),
-    );
-    console.log(theme.muted(`  - Or add records directly in your DNS provider's dashboard\n`));
-
-    const { proceed } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'proceed',
-        message: 'Add to DirectAdmin anyway? (will NOT take effect)',
-        default: false,
-      },
-    ]);
-    if (!proceed) return;
-  }
 
   console.log(theme.heading(`Add DNS Record to ${targetDomain}`));
 
@@ -302,14 +266,19 @@ export async function dnsapiAdd(domain?: string): Promise<void> {
   const spinner = ora({ text: 'Adding DNS record...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
-    const result = await addDnsRecord(creds, targetDomain, answers.type, answers.name, answers.value, priority);
+    const routeResult = await routeDnsAdd(targetDomain, {
+      type: answers.type,
+      name: answers.name,
+      value: answers.value,
+      priority,
+    });
 
-    if (result.error && result.error !== '0') {
-      spinner.fail(chalk.red('Failed to add DNS record'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
-    } else {
-      spinner.succeed(chalk.green(`${answers.type} record added to ${targetDomain}`));
+    if (routeResult.success) {
+      spinner.succeed(chalk.green(`${answers.type} record added to ${targetDomain} via ${routeResult.provider}`));
       console.log('');
+    } else {
+      spinner.fail(chalk.red('Failed to add DNS record'));
+      console.log(theme.error(`  ${routeResult.message}\n`));
     }
   } catch (err: any) {
     spinner.fail(chalk.red('Failed to add DNS record'));
@@ -320,29 +289,6 @@ export async function dnsapiAdd(domain?: string): Promise<void> {
 export async function dnsapiDelete(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
-  const config = getConfig();
-
-  // Check if MXroute is the DNS authority
-  const nsInfo = await checkNameservers(targetDomain, config.server);
-  if (!nsInfo.isMxrouteAuthority) {
-    console.log(theme.warning(`\n  ${theme.statusIcon('warn')} ${targetDomain} DNS is NOT managed by MXroute.`));
-    console.log(theme.muted(`  Nameservers: ${nsInfo.nameservers.join(', ')}`));
-    if (nsInfo.provider) {
-      console.log(theme.muted(`  DNS provider detected: ${theme.bold(nsInfo.provider)}`));
-    }
-    console.log(theme.warning(`\n  Deleting records from DirectAdmin will have NO effect on live DNS.`));
-    console.log(theme.muted(`  Manage records at your DNS provider (${nsInfo.provider || 'unknown'}) instead.\n`));
-
-    const { proceed } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'proceed',
-        message: 'Delete from DirectAdmin anyway?',
-        default: false,
-      },
-    ]);
-    if (!proceed) return;
-  }
 
   console.log(theme.heading(`Delete DNS Record from ${targetDomain}`));
 
@@ -353,10 +299,15 @@ export async function dnsapiDelete(domain?: string): Promise<void> {
   }).start();
 
   try {
-    const raw = await listDnsRecords(creds, targetDomain);
+    const routeResult = await routeDnsList(targetDomain);
     spinner.stop();
 
-    const records = parseRecords(raw);
+    if (!routeResult.success) {
+      console.log(theme.error(`  ${routeResult.message}\n`));
+      return;
+    }
+
+    const records = parseRecords(routeResult.records || []);
 
     if (records.length === 0) {
       console.log(theme.muted('  No DNS records to delete.\n'));
@@ -404,14 +355,20 @@ export async function dnsapiDelete(domain?: string): Promise<void> {
     }
 
     const delSpinner = ora({ text: 'Deleting DNS record...', spinner: 'dots12', color: 'red' }).start();
-    const result = await deleteDnsRecord(creds, targetDomain, selected.type, selected.name, selected.value);
+    const deleteResult = await routeDnsDelete(targetDomain, {
+      type: selected.type,
+      name: selected.name,
+      value: selected.value,
+    });
 
-    if (result.error && result.error !== '0') {
-      delSpinner.fail(chalk.red('Failed to delete DNS record'));
-      console.log(theme.error(`  ${result.text || JSON.stringify(result)}\n`));
-    } else {
-      delSpinner.succeed(chalk.green(`Deleted ${selected.type} record from ${targetDomain}`));
+    if (deleteResult.success) {
+      delSpinner.succeed(
+        chalk.green(`Deleted ${selected.type} record from ${targetDomain} via ${deleteResult.provider}`),
+      );
       console.log('');
+    } else {
+      delSpinner.fail(chalk.red('Failed to delete DNS record'));
+      console.log(theme.error(`  ${deleteResult.message}\n`));
     }
   } catch (err: any) {
     spinner.stop();

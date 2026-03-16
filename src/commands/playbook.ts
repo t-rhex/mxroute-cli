@@ -147,6 +147,39 @@ export function playbookValidate(file: string): void {
   }
 }
 
+export function playbookActions(): void {
+  console.log(theme.heading('Available Playbook Actions'));
+  console.log(theme.muted('  Use these in the "action" field of playbook steps.\n'));
+
+  const actions: [string, string][] = [
+    ['accounts.create', 'Create email account(s) — supports bulk via users[] array'],
+    ['accounts.delete', 'Delete an email account'],
+    ['accounts.password', 'Change account password'],
+    ['accounts.quota', 'Set account storage quota'],
+    ['forwarders.create', 'Create forwarder(s) — supports bulk via rules[] array'],
+    ['forwarders.delete', 'Delete a forwarder'],
+    ['catchall.set', 'Set catch-all address (:fail:, :blackhole:, or email)'],
+    ['autoresponder.create', 'Create an autoresponder/vacation message'],
+    ['autoresponder.delete', 'Delete an autoresponder'],
+    ['spam.config', 'Configure SpamAssassin settings'],
+    ['dns.check', 'Run DNS health check for a domain'],
+  ];
+
+  for (const [action, desc] of actions) {
+    console.log(`  ${theme.bold(action.padEnd(24))} ${theme.muted(desc)}`);
+  }
+
+  console.log('');
+  console.log(theme.subheading('Example step'));
+  console.log(theme.muted('    - name: Create admin account'));
+  console.log(theme.muted('      action: accounts.create'));
+  console.log(theme.muted('      args:'));
+  console.log(theme.muted('        domain: "{{ vars.domain }}"'));
+  console.log(theme.muted('        user: admin'));
+  console.log(theme.muted('        password: "{{ vars.password }}"'));
+  console.log('');
+}
+
 export function playbookList(): void {
   console.log(theme.heading('Saved Playbooks'));
   if (!fs.existsSync(PLAYBOOKS_DIR)) {

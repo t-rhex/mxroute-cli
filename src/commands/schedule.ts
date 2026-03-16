@@ -158,6 +158,10 @@ export async function scheduleCreate(domain?: string): Promise<void> {
     console.log(theme.muted(`  The autoresponder will be disabled on ${answers.endDate}.`));
     console.log(theme.muted(`  Run ${theme.bold('mxroute schedule check')} on that date to disable it.\n`));
   }
+
+  console.log(theme.warning(`\n  ${theme.statusIcon('warn')} Schedules need periodic checking to activate.`));
+  console.log(theme.muted(`  The schedule will be applied when mxroute schedule check runs.`));
+  console.log(theme.muted(`  Set up automatic checking: mxroute cron setup\n`));
 }
 
 export async function scheduleList(): Promise<void> {

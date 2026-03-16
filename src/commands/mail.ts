@@ -5,30 +5,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as tls from 'tls';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
 import { ImapClient, ImapConfig } from '../utils/imap';
 import { parseMessage, htmlToText, buildMimeMessage, formatFileSize } from '../utils/mime';
+import { getSendingAccount } from '../utils/sending-account';
 
-function getImapConfig(): ImapConfig {
-  const config = getConfig();
-  if (!config.server || !config.username || !config.password) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} SMTP/IMAP not configured. Run ${theme.bold('mxroute config smtp')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
+async function getImapConfig(): Promise<ImapConfig> {
+  const account = await getSendingAccount();
   return {
-    host: `${config.server}.mxrouting.net`,
+    host: account.server,
     port: 993,
-    user: config.username,
-    password: config.password,
+    user: account.email,
+    password: account.password,
   };
 }
 
 async function withImap<T>(fn: (client: ImapClient) => Promise<T>): Promise<T> {
-  const imapConfig = getImapConfig();
+  const imapConfig = await getImapConfig();
   const client = new ImapClient(imapConfig);
 
   try {
@@ -222,7 +214,7 @@ export async function mailRead(uid?: string): Promise<void> {
 // ─── Compose ────────────────────────────────────────────
 
 export async function mailCompose(): Promise<void> {
-  const config = getConfig();
+  const account = await getSendingAccount();
 
   console.log(theme.heading('Compose Email'));
 
@@ -300,7 +292,7 @@ export async function mailCompose(): Promise<void> {
 
   // Summary
   console.log('');
-  console.log(theme.keyValue('From', config.username));
+  console.log(theme.keyValue('From', account.email));
   console.log(theme.keyValue('To', answers.to));
   if (answers.cc) console.log(theme.keyValue('Cc', answers.cc));
   if (answers.bcc) console.log(theme.keyValue('Bcc', answers.bcc));
@@ -325,7 +317,7 @@ export async function mailCompose(): Promise<void> {
     if (attachments.length > 0 || answers.cc || answers.bcc) {
       // Use SMTP directly for attachments/CC/BCC
       const mime = buildMimeMessage({
-        from: config.username,
+        from: account.email,
         to: answers.to,
         cc: answers.cc || undefined,
         bcc: answers.bcc || undefined,
@@ -335,16 +327,16 @@ export async function mailCompose(): Promise<void> {
         attachments: attachments.length > 0 ? attachments : undefined,
       });
 
-      await sendViaSMTP(config, answers.to, answers.cc, answers.bcc, mime);
+      await sendViaSMTP(account, answers.to, answers.cc, answers.bcc, mime);
       spinner.succeed(chalk.green(`Email sent to ${answers.to}`));
     } else {
       // Use SMTP API for simple messages
       const { sendEmail } = await import('../utils/api');
       const result = await sendEmail({
-        server: `${config.server}.mxrouting.net`,
-        username: config.username,
-        password: config.password,
-        from: config.username,
+        server: account.server,
+        username: account.email,
+        password: account.password,
+        from: account.email,
         to: answers.to,
         subject: answers.subject,
         body: answers.useHtml
@@ -373,7 +365,9 @@ export async function mailReply(uid?: string): Promise<void> {
   }
 
   const uidNum = parseInt(uid, 10);
-  const config = getConfig();
+  // Prompt for sending account before fetching the message so the user isn't
+  // blocked mid-flow if credentials aren't configured yet.
+  const account = await getSendingAccount();
 
   const spinner = ora({ text: 'Fetching original message...', spinner: 'dots12', color: 'cyan' }).start();
 
@@ -431,10 +425,10 @@ export async function mailReply(uid?: string): Promise<void> {
     try {
       const { sendEmail } = await import('../utils/api');
       const result = await sendEmail({
-        server: `${config.server}.mxrouting.net`,
-        username: config.username,
-        password: config.password,
-        from: config.username,
+        server: account.server,
+        username: account.email,
+        password: account.password,
+        from: account.email,
         to: replyTo,
         subject: replySubject,
         body: `<pre style="font-family: system-ui, sans-serif; white-space: pre-wrap;">${escapeHtml(fullBody)}</pre>`,
@@ -463,7 +457,9 @@ export async function mailForward(uid?: string): Promise<void> {
   }
 
   const uidNum = parseInt(uid, 10);
-  const config = getConfig();
+  // Prompt for sending account before fetching the message so the user isn't
+  // blocked mid-flow if credentials aren't configured yet.
+  const account = await getSendingAccount();
 
   const spinner = ora({ text: 'Fetching original message...', spinner: 'dots12', color: 'cyan' }).start();
 
@@ -529,10 +525,10 @@ export async function mailForward(uid?: string): Promise<void> {
     try {
       const { sendEmail } = await import('../utils/api');
       const result = await sendEmail({
-        server: `${config.server}.mxrouting.net`,
-        username: config.username,
-        password: config.password,
-        from: config.username,
+        server: account.server,
+        username: account.email,
+        password: account.password,
+        from: account.email,
         to: answers.to,
         subject: `Fwd: ${msg.subject}`,
         body: `<pre style="font-family: system-ui, sans-serif; white-space: pre-wrap;">${escapeHtml(forwarded)}</pre>`,
@@ -932,13 +928,13 @@ export async function mailUnread(): Promise<void> {
 // ─── SMTP Send Helper ──────────────────────────────────
 
 async function sendViaSMTP(
-  config: any,
+  account: { email: string; password: string; server: string },
   to: string,
   cc: string | undefined,
   bcc: string | undefined,
   mimeMessage: string,
 ): Promise<void> {
-  const host = `${config.server}.mxrouting.net`;
+  const host = account.server;
   const port = 465;
 
   return new Promise((resolve, reject) => {
@@ -973,13 +969,13 @@ async function sendViaSMTP(
           socket.write('AUTH LOGIN\r\n');
         } else if (step === 2 && code === 334) {
           step = 3;
-          socket.write(Buffer.from(config.username).toString('base64') + '\r\n');
+          socket.write(Buffer.from(account.email).toString('base64') + '\r\n');
         } else if (step === 3 && code === 334) {
           step = 4;
-          socket.write(Buffer.from(config.password).toString('base64') + '\r\n');
+          socket.write(Buffer.from(account.password).toString('base64') + '\r\n');
         } else if (step === 4 && code === 235) {
           step = 5;
-          socket.write(`MAIL FROM:<${config.username}>\r\n`);
+          socket.write(`MAIL FROM:<${account.email}>\r\n`);
         } else if (step === 4 && code >= 400) {
           socket.destroy();
           reject(new Error('SMTP authentication failed'));

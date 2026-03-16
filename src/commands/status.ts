@@ -87,11 +87,11 @@ export async function statusCommand(): Promise<void> {
 
   if (config.username && config.password) {
     console.log(
-      `    ${theme.statusIcon('pass')} ${theme.success('SMTP API')}          ${theme.muted(config.username)}`,
+      `    ${theme.statusIcon('pass')} ${theme.success('Sending Account')}   ${theme.muted(config.username)}`,
     );
   } else {
     console.log(
-      `    ${theme.statusIcon('info')} ${theme.muted('SMTP API')}          ${theme.muted('not configured (optional — run mxroute config smtp)')}`,
+      `    ${theme.statusIcon('info')} ${theme.muted('Sending Account')}   ${theme.muted('not configured (optional — run mxroute send to set up)')}`,
     );
   }
   console.log('');
@@ -122,18 +122,18 @@ export async function statusCommand(): Promise<void> {
     }
   }
 
-  // SMTP connection test (only if configured)
+  // Sending account connection test (only if configured)
   if (config.username && config.password) {
-    const apiSpinner = ora({ text: 'Testing SMTP API...', spinner: 'dots12', color: 'cyan' }).start();
+    const apiSpinner = ora({ text: 'Testing sending connection...', spinner: 'dots12', color: 'cyan' }).start();
     try {
       const result = await testConnection(`${config.server}.mxrouting.net`, config.username, config.password);
       if (result.success) {
-        apiSpinner.succeed(chalk.green('SMTP API connection successful'));
+        apiSpinner.succeed(chalk.green('Sending connection successful'));
       } else {
-        apiSpinner.warn(chalk.yellow(`SMTP API: ${result.message}`));
+        apiSpinner.warn(chalk.yellow(`Sending: ${result.message}`));
       }
     } catch (err: any) {
-      apiSpinner.fail(chalk.red(`SMTP API: ${err.message}`));
+      apiSpinner.fail(chalk.red(`Sending: ${err.message}`));
     }
     console.log('');
   }

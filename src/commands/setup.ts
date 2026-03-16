@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import { theme } from '../utils/theme';
-import { getConfig, setConfig, setProfile } from '../utils/config';
+import { getConfig, setConfig } from '../utils/config';
 import { testAuth } from '../utils/directadmin';
 
 // ─── Tool detection ──────────────────────────────────────
@@ -395,7 +395,6 @@ export async function setupWizard(): Promise<void> {
 
   // Step 1: What to set up — pre-check only unconfigured items
   const currentConfig = getConfig();
-  const hasSmtp = !!(currentConfig.username && currentConfig.password);
   const hasAuth = !!(currentConfig.daUsername && currentConfig.daLoginKey);
 
   const { components } = await inquirer.prompt([
@@ -405,15 +404,8 @@ export async function setupWizard(): Promise<void> {
       message: 'What would you like to set up?',
       choices: [
         {
-          name: hasSmtp
-            ? `CLI Configuration (SMTP) ${chalk.green('— configured')}`
-            : 'CLI Configuration (SMTP credentials for sending email)',
-          value: 'cli',
-          checked: !hasSmtp,
-        },
-        {
           name: hasAuth
-            ? `DirectAdmin API ${chalk.green('— configured')}`
+            ? `DirectAdmin API Authentication ${chalk.green('— configured')}`
             : 'DirectAdmin API Authentication (account management)',
           value: 'auth',
           checked: !hasAuth,
@@ -424,51 +416,7 @@ export async function setupWizard(): Promise<void> {
     },
   ]);
 
-  // Step 2: CLI Config
-  if (components.includes('cli')) {
-    console.log(theme.heading('SMTP Configuration'));
-
-    const answers = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'server',
-        message: theme.secondary('MXroute server hostname (e.g., tuesday, fusion):'),
-        default: getConfig().server || '',
-        validate: (input: string) => (input.trim() ? true : 'Required'),
-        filter: (input: string) => input.replace('.mxrouting.net', '').trim(),
-      },
-      {
-        type: 'input',
-        name: 'username',
-        message: theme.secondary('Email address (SMTP username):'),
-        default: getConfig().username || '',
-        validate: (input: string) => (input.includes('@') ? true : 'Must be a full email address'),
-      },
-      {
-        type: 'password',
-        name: 'password',
-        message: theme.secondary('Email password:'),
-        mask: '•',
-      },
-      {
-        type: 'input',
-        name: 'domain',
-        message: theme.secondary('Primary domain:'),
-        default: (answers: any) => (answers.username || '').split('@')[1] || getConfig().domain || '',
-      },
-    ]);
-
-    setProfile('default', {
-      server: answers.server,
-      username: answers.username,
-      password: answers.password,
-      domain: answers.domain,
-    });
-
-    console.log(theme.success(`\n  ${theme.statusIcon('pass')} SMTP configuration saved\n`));
-  }
-
-  // Step 3: DirectAdmin Auth
+  // Step 2: DirectAdmin Auth
   if (components.includes('auth')) {
     console.log(theme.heading('DirectAdmin API Authentication'));
     console.log(theme.muted('  Create a Login Key at Control Panel (panel.mxroute.com) -> Login Keys\n'));

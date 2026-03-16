@@ -17,7 +17,25 @@ program
   .name('mxroute')
   .description('A powerful CLI for managing MXroute email hosting')
   .version(pkg.version, '-v, --version')
-  .addHelpText('beforeAll', theme.banner());
+  .addHelpText('beforeAll', theme.banner())
+  .addHelpText(
+    'afterAll',
+    `
+  ─── Quick Reference ──────────────────────────────────────
+  Core:        setup, status, config, auth, whoami, open
+  Email:       accounts, forwarders, autoresponder, catchall, filters, lists, aliases
+  Mail:        mail inbox, mail read, mail compose, mail reply, mail search
+  DNS:         dns check, dns setup, dns providers, dns list, dns add
+  Sending:     send, test, webhook, templates
+  Security:    audit, spam, ip, reputation, ssl-check
+  Monitoring:  monitor, doctor, benchmark, cron, rate-limit
+  Data:        export, import, diff, bulk, mail-backup, migrate
+  Business:    onboard, provision, deprovision, welcome-send, quota-policy
+  Platform:    guide, suggest, playbook, dashboard, completions, report
+
+  Run mxroute guide to explore commands with examples.
+`,
+  );
 
 program.option('--json', 'Output as JSON (for scripting)');
 program.hook('preAction', (thisCommand) => {
@@ -58,19 +76,21 @@ configCmd
   });
 
 configCmd
-  .command('smtp')
-  .description('Configure SMTP credentials for sending email')
+  .command('sending-account')
+  .alias('smtp')
+  .description('Configure sending account for email')
   .action(async () => {
-    const { configSmtp } = await import('./commands/config');
-    await configSmtp();
+    const { configSendingAccount } = await import('./commands/config');
+    await configSendingAccount();
   });
 
 configCmd
-  .command('remove-smtp')
-  .description('Remove stored SMTP credentials')
+  .command('remove-sending-account')
+  .alias('remove-smtp')
+  .description('Remove stored sending account')
   .action(async () => {
-    const { configRemoveSmtp } = await import('./commands/config');
-    await configRemoveSmtp();
+    const { configRemoveSendingAccount } = await import('./commands/config');
+    await configRemoveSendingAccount();
   });
 
 configCmd
@@ -108,7 +128,7 @@ configCmd
 // ─── Send ────────────────────────────────────────────────
 program
   .command('send')
-  .description('Send an email via MXroute SMTP API')
+  .description('Send a quick email (single recipient, no attachments — use mail compose for full features)')
   .option('-t, --to <email>', 'Recipient email address')
   .option('-s, --subject <subject>', 'Email subject')
   .option('-b, --body <body>', 'Email body')
@@ -125,7 +145,7 @@ const dnsCmd = program.command('dns').description('DNS record management and ver
 
 dnsCmd
   .command('check [domain]')
-  .description('Run full DNS health check')
+  .description('Verify DNS records (MX, SPF, DKIM, DMARC) for one domain')
   .action(async (domain?: string) => {
     const { dnsCheck } = await import('./commands/dns');
     await dnsCheck(domain);
@@ -161,6 +181,64 @@ dnsCmd
   .action(async (domain?: string) => {
     const { dnsWatchCommand } = await import('./commands/dns-watch');
     await dnsWatchCommand(domain);
+  });
+
+dnsCmd
+  .command('providers')
+  .description('List supported DNS providers and credential status')
+  .action(async () => {
+    const { dnsProvidersCommand } = await import('./commands/dns-providers');
+    await dnsProvidersCommand();
+  });
+
+dnsCmd
+  .command('providers-setup <provider>')
+  .description('Configure credentials for a DNS provider')
+  .action(async (provider: string) => {
+    const { dnsProvidersSetup } = await import('./commands/dns-providers');
+    await dnsProvidersSetup(provider);
+  });
+
+dnsCmd
+  .command('providers-remove <provider>')
+  .description('Remove credentials for a DNS provider')
+  .action(async (provider: string) => {
+    const { dnsProvidersRemove } = await import('./commands/dns-providers');
+    await dnsProvidersRemove(provider);
+  });
+
+dnsCmd
+  .command('list [domain]')
+  .alias('ls')
+  .description('List all DNS records from server')
+  .action(async (domain?: string) => {
+    const { dnsapiList } = await import('./commands/dnsapi');
+    await dnsapiList(domain);
+  });
+
+dnsCmd
+  .command('add [domain]')
+  .description('Add a DNS record')
+  .action(async (domain?: string) => {
+    const { dnsapiAdd } = await import('./commands/dnsapi');
+    await dnsapiAdd(domain);
+  });
+
+dnsCmd
+  .command('delete [domain]')
+  .alias('rm')
+  .description('Delete a DNS record')
+  .action(async (domain?: string) => {
+    const { dnsapiDelete } = await import('./commands/dnsapi');
+    await dnsapiDelete(domain);
+  });
+
+dnsCmd
+  .command('dkim [domain]')
+  .description('Show DKIM key for domain')
+  .action(async (domain?: string) => {
+    const { dnsapiDkim } = await import('./commands/dnsapi');
+    await dnsapiDkim(domain);
   });
 
 // ─── Info ────────────────────────────────────────────────
@@ -286,10 +364,11 @@ const accountsCmd = program.command('accounts').description('Manage email accoun
 accountsCmd
   .command('list [domain]')
   .alias('ls')
+  .option('-a, --all', 'List accounts across all domains')
   .description('List email accounts')
-  .action(async (domain?: string) => {
+  .action(async (domain?: string, options?: any) => {
     const { accountsList } = await import('./commands/accounts');
-    await accountsList(domain);
+    await accountsList(domain, options);
   });
 
 accountsCmd
@@ -449,7 +528,10 @@ spamCmd
   });
 
 // ─── DNS Records (via API) ──────────────────────────────
-const dnsapiCmd = program.command('dnsrecords').alias('dnsapi').description('Manage DNS records via DirectAdmin API');
+const dnsapiCmd = program
+  .command('dnsrecords', { hidden: true })
+  .alias('dnsapi')
+  .description('DNS records (use dns list/add/delete instead)');
 
 dnsapiCmd
   .command('list [domain]')
@@ -640,7 +722,7 @@ program
 program
   .command('doctor')
   .alias('healthcheck')
-  .description('Run comprehensive health check across all domains')
+  .description('Full health check — auth, DNS (all domains), quota, connectivity')
   .action(async () => {
     const { doctorCommand } = await import('./commands/doctor');
     await doctorCommand();
@@ -731,7 +813,7 @@ notifyCmd
 // ─── Audit ───────────────────────────────────────────────
 program
   .command('audit')
-  .description('Security audit — DNS, SPF lookups, catch-all, forwarding loops')
+  .description('Security audit with score — DNS, catch-all, forwarding loops')
   .action(async () => {
     const { auditCommand } = await import('./commands/audit');
     await auditCommand();
@@ -772,6 +854,7 @@ program
   .command('webhook')
   .description('Start local HTTP server that relays email via MXroute')
   .option('-p, --port <port>', 'Port to listen on', '3025')
+  .option('-k, --api-key <key>', 'Require API key for authentication')
   .action(async (options) => {
     const { webhookCommand } = await import('./commands/webhook');
     await webhookCommand(options);
@@ -914,7 +997,8 @@ program
 
 // ─── Backup ─────────────────────────────────────────────
 program
-  .command('backup [domain]')
+  .command('mail-backup [domain]')
+  .alias('backup')
   .description('Generate IMAP mailbox backup commands (imapsync)')
   .action(async (domain?: string) => {
     const { backupCommand } = await import('./commands/backup');
@@ -972,7 +1056,7 @@ program
 program
   .command('reputation [domain]')
   .alias('rep')
-  .description('Check sender reputation (SPF, DKIM, DMARC, blacklists)')
+  .description('Sender reputation — SPF, DKIM, DMARC, blacklists for one domain')
   .action(async (domain?: string) => {
     const { reputationCommand } = await import('./commands/reputation');
     await reputationCommand(domain);
@@ -1030,7 +1114,7 @@ program
 // ─── Aliases Sync ───────────────────────────────────────
 aliasesCmd
   .command('sync')
-  .description('Sync domain aliases across profiles/servers')
+  .description('Copy domain pointer aliases from one server profile to another')
   .action(async () => {
     const { aliasesSyncCommand } = await import('./commands/aliases-sync');
     await aliasesSyncCommand();
@@ -1175,37 +1259,33 @@ program
   .command('test')
   .description('Send a test email to yourself')
   .action(async () => {
-    const { getConfig } = await import('./utils/config');
+    const { getSendingAccount } = await import('./utils/sending-account');
     const { sendEmail } = await import('./utils/api');
     const ora = (await import('ora')).default;
     const chalk = (await import('chalk')).default;
 
-    const config = getConfig();
-    if (!config.server || !config.username || !config.password) {
-      console.log(theme.error(`\n  Run ${theme.bold('mxroute config smtp')} first.\n`));
-      process.exit(1);
-    }
+    const account = await getSendingAccount();
 
     const spinner = ora({ text: 'Sending test email to yourself...', spinner: 'dots12', color: 'cyan' }).start();
     try {
       const result = await sendEmail({
-        server: `${config.server}.mxrouting.net`,
-        username: config.username,
-        password: config.password,
-        from: config.username,
-        to: config.username,
+        server: account.server,
+        username: account.email,
+        password: account.password,
+        from: account.email,
+        to: account.email,
         subject: `MXroute CLI Test — ${new Date().toLocaleString()}`,
         body: `<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
           <h2 style="color: #6C63FF;">MXroute CLI</h2>
           <p>This test email was sent from the MXroute CLI at <strong>${new Date().toLocaleString()}</strong>.</p>
           <p style="color: #00E676;">✓ Your configuration is working correctly.</p>
           <hr style="border: none; border-top: 1px solid #eee;">
-          <p style="color: #999; font-size: 12px;">Server: ${config.server}.mxrouting.net</p>
+          <p style="color: #999; font-size: 12px;">Server: ${account.server}</p>
         </div>`,
       });
 
       if (result.success) {
-        spinner.succeed(chalk.green(`Test email sent to ${config.username}`));
+        spinner.succeed(chalk.green(`Test email sent to ${account.email}`));
       } else {
         spinner.fail(chalk.red(result.message));
       }
@@ -1356,6 +1436,14 @@ playbookCmd
   .action(async () => {
     const { playbookList } = await import('./commands/playbook');
     playbookList();
+  });
+
+playbookCmd
+  .command('actions')
+  .description('List available playbook actions')
+  .action(async () => {
+    const { playbookActions } = await import('./commands/playbook');
+    playbookActions();
   });
 
 // ─── Dashboard ──────────────────────────────────────────

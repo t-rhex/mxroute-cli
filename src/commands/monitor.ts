@@ -7,6 +7,7 @@ import { listDomains } from '../utils/directadmin';
 import { checkSpfRecord, checkDkimRecord, checkMxRecords } from '../utils/dns';
 import { sendEmail } from '../utils/api';
 import { isJsonMode, output } from '../utils/json-output';
+import { getSendingAccountSync } from '../utils/sending-account';
 
 interface PortCheckResult {
   host: string;
@@ -161,16 +162,21 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
     }
 
     // Send alert email if configured and --alert flag
-    if (options.alert && config.username && config.password && config.server) {
-      if (!options.quiet) {
+    if (options.alert) {
+      const alertAccount = getSendingAccountSync();
+      if (!alertAccount) {
+        if (!options.quiet) {
+          console.log(theme.muted('  No sending account configured. Skipping alert email.\n'));
+        }
+      } else if (!options.quiet) {
         const alertSpinner = ora({ text: 'Sending alert email...', spinner: 'dots12', color: 'red' }).start();
         try {
           await sendEmail({
-            server: `${config.server}.mxrouting.net`,
-            username: config.username,
-            password: config.password,
-            from: config.username,
-            to: config.username,
+            server: alertAccount.server,
+            username: alertAccount.email,
+            password: alertAccount.password,
+            from: alertAccount.email,
+            to: alertAccount.email,
             subject: `[MXroute Alert] ${issues.length} issue${issues.length !== 1 ? 's' : ''} detected`,
             body: `<div style="font-family: system-ui, sans-serif; padding: 20px;">
               <h2 style="color: #FF5252;">MXroute Monitor Alert</h2>

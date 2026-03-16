@@ -5,7 +5,8 @@ import { getConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
 import { listDomains, getCatchAll, setCatchAll, getDkimKey } from '../utils/directadmin';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
-import { getProvider, generateMxrouteRecords, RegistrarConfig } from '../utils/registrars';
+import { routeDnsAdd, routeDnsDelete } from '../utils/dns-router';
+import { generateMxrouteRecords } from '../providers/mxroute-records';
 
 interface FixAction {
   domain: string;
@@ -21,15 +22,7 @@ export async function fixCommand(): Promise<void> {
   console.log(theme.heading('Auto-Fix'));
   console.log(theme.muted('  Scanning for issues and preparing fixes...\n'));
 
-  // Get registrar config if available
-  const registrarConfig: RegistrarConfig | null = (config as any).registrar
-    ? {
-        provider: (config as any).registrar.provider,
-        apiKey: (config as any).registrar.apiKey,
-        apiSecret: (config as any).registrar.apiSecret,
-      }
-    : null;
-  const provider = registrarConfig ? getProvider(registrarConfig.provider) : null;
+  // DNS fixes are routed automatically via dns-router
 
   // Fetch domains
   const domSpinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
@@ -50,16 +43,16 @@ export async function fixCommand(): Promise<void> {
 
     // Check MX
     const mx = await checkMxRecords(domain, config.server);
-    if (mx.status === 'fail' && provider && registrarConfig) {
+    if (mx.status === 'fail') {
       const records = generateMxrouteRecords(config.server, domain);
       const mxRecords = records.filter((r) => r.type === 'MX');
       actions.push({
         domain,
         issue: 'MX records missing or incorrect',
-        fix: 'Create MX records via ' + provider.name,
+        fix: 'Create MX records via DNS router',
         execute: async () => {
           for (const r of mxRecords) {
-            const res = await provider.createRecord(registrarConfig, domain, r);
+            const res = await routeDnsAdd(domain, r);
             if (!res.success) return res;
           }
           return { success: true, message: 'MX records created' };
@@ -69,13 +62,13 @@ export async function fixCommand(): Promise<void> {
 
     // Check SPF
     const spf = await checkSpfRecord(domain);
-    if (spf.status === 'fail' && provider && registrarConfig) {
+    if (spf.status === 'fail') {
       actions.push({
         domain,
         issue: 'SPF record missing',
         fix: 'Create SPF TXT record',
         execute: async () =>
-          provider.createRecord(registrarConfig, domain, {
+          routeDnsAdd(domain, {
             type: 'TXT',
             name: '@',
             value: 'v=spf1 include:mxroute.com -all',
@@ -83,29 +76,26 @@ export async function fixCommand(): Promise<void> {
           }),
       });
     } else if (spf.status === 'warn' && spf.actual && spf.actual.includes('~all')) {
-      // Can't auto-fix soft fail without registrar — just note it
-      if (provider && registrarConfig) {
-        actions.push({
-          domain,
-          issue: 'SPF using ~all (soft fail)',
-          fix: 'Replace with -all (hard fail)',
-          execute: async () => {
-            // Delete old, create new
-            await provider.deleteRecord(registrarConfig, domain, { type: 'TXT', name: '@', value: spf.actual });
-            return provider.createRecord(registrarConfig, domain, {
-              type: 'TXT',
-              name: '@',
-              value: spf.actual.replace('~all', '-all'),
-              ttl: 3600,
-            });
-          },
-        });
-      }
+      actions.push({
+        domain,
+        issue: 'SPF using ~all (soft fail)',
+        fix: 'Replace with -all (hard fail)',
+        execute: async () => {
+          // Delete old, create new
+          await routeDnsDelete(domain, { type: 'TXT', name: '@', value: spf.actual });
+          return routeDnsAdd(domain, {
+            type: 'TXT',
+            name: '@',
+            value: spf.actual.replace('~all', '-all'),
+            ttl: 3600,
+          });
+        },
+      });
     }
 
     // Check DKIM
     const dkim = await checkDkimRecord(domain);
-    if (dkim.status === 'fail' && provider && registrarConfig) {
+    if (dkim.status === 'fail') {
       // Try to get DKIM from DirectAdmin
       const dkimKey = await getDkimKey(creds, domain);
       if (dkimKey) {
@@ -114,7 +104,7 @@ export async function fixCommand(): Promise<void> {
           issue: 'DKIM record missing in DNS',
           fix: 'Create DKIM TXT record from DirectAdmin key',
           execute: async () =>
-            provider.createRecord(registrarConfig, domain, {
+            routeDnsAdd(domain, {
               type: 'TXT',
               name: 'x._domainkey',
               value: dkimKey,
@@ -127,29 +117,27 @@ export async function fixCommand(): Promise<void> {
     // Check DMARC
     const dmarc = await checkDmarcRecord(domain);
     if (dmarc.status === 'fail' || (dmarc.status === 'warn' && dmarc.actual && dmarc.actual.includes('p=none'))) {
-      if (provider && registrarConfig) {
-        const isNone = dmarc.actual && dmarc.actual.includes('p=none');
-        actions.push({
-          domain,
-          issue: isNone ? 'DMARC policy is "none" (no protection)' : 'DMARC record missing',
-          fix: isNone ? 'Upgrade to p=quarantine' : 'Create DMARC record with p=quarantine',
-          execute: async () => {
-            if (isNone) {
-              await provider.deleteRecord(registrarConfig, domain, {
-                type: 'TXT',
-                name: '_dmarc',
-                value: dmarc.actual,
-              });
-            }
-            return provider.createRecord(registrarConfig, domain, {
+      const isNone = dmarc.actual && dmarc.actual.includes('p=none');
+      actions.push({
+        domain,
+        issue: isNone ? 'DMARC policy is "none" (no protection)' : 'DMARC record missing',
+        fix: isNone ? 'Upgrade to p=quarantine' : 'Create DMARC record with p=quarantine',
+        execute: async () => {
+          if (isNone) {
+            await routeDnsDelete(domain, {
               type: 'TXT',
               name: '_dmarc',
-              value: `v=DMARC1; p=quarantine; rua=mailto:postmaster@${domain}`,
-              ttl: 3600,
+              value: dmarc.actual,
             });
-          },
-        });
-      }
+          }
+          return routeDnsAdd(domain, {
+            type: 'TXT',
+            name: '_dmarc',
+            value: `v=DMARC1; p=quarantine; rua=mailto:postmaster@${domain}`,
+            ttl: 3600,
+          });
+        },
+      });
     }
 
     // Check catch-all
@@ -185,20 +173,6 @@ export async function fixCommand(): Promise<void> {
     console.log(theme.muted(`     Fix: ${actions[i].fix}`));
   }
   console.log('');
-
-  if (!provider) {
-    console.log(
-      theme.warning(
-        `  ${theme.statusIcon('warn')} DNS fixes require a registrar. Run ${theme.bold('mxroute dns setup')} first.\n`,
-      ),
-    );
-    // Filter to non-DNS fixes only
-    const nonDnsActions = actions.filter(
-      (a) =>
-        !a.issue.includes('MX') && !a.issue.includes('SPF') && !a.issue.includes('DKIM') && !a.issue.includes('DMARC'),
-    );
-    if (nonDnsActions.length === 0) return;
-  }
 
   const { proceed } = await inquirer.prompt([
     {
