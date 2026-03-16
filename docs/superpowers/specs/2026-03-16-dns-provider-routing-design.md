@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-16
 **Branch:** TBD (feat/dns-provider-routing)
-**Status:** Draft
+**Status:** Draft (rev 2 — post-review fixes)
 
 ## Problem
 
@@ -48,6 +48,7 @@ src/providers/
 // src/providers/types.ts
 
 export interface DnsRecord {
+  id?: string;        // provider-specific record ID (populated by listRecords, used by deleteRecord)
   type: string;       // A, AAAA, CNAME, MX, TXT, SRV
   name: string;       // @ or subdomain
   value: string;
@@ -76,11 +77,16 @@ export interface DnsProvider {
   nsPatterns: string[];           // nameserver substrings that identify this provider
   credentialFields: CredentialField[];
 
+  // Validate credentials have required keys before making API calls
+  validateCredentials(creds: ProviderCredentials): string | null;  // returns error message or null if valid
+
   authenticate(creds: ProviderCredentials): Promise<boolean>;
   listZones(creds: ProviderCredentials): Promise<string[]>;
   listRecords(creds: ProviderCredentials, domain: string): Promise<DnsRecord[]>;
   createRecord(creds: ProviderCredentials, domain: string, record: DnsRecord): Promise<ProviderResult>;
   deleteRecord(creds: ProviderCredentials, domain: string, record: DnsRecord): Promise<ProviderResult>;
+  // Optional: in-place update (avoids delete+create race condition)
+  updateRecord?(creds: ProviderCredentials, domain: string, oldRecord: DnsRecord, newRecord: DnsRecord): Promise<ProviderResult>;
 }
 ```
 
@@ -132,7 +138,7 @@ import { porkbun } from './porkbun';
 | DigitalOcean | `['digitalocean.com']` |
 | Namecheap | `['registrar-servers.com', 'namecheaphosting.com']` |
 | Route53 | `['awsdns']` |
-| Google Cloud DNS | `['googledomains.com', 'google.com']` |
+| Google Cloud DNS | `['ns-cloud']` (matches `ns-cloud-*.googledomains.com` — avoids false positive with former Google Domains/Squarespace) |
 | GoDaddy | `['domaincontrol.com']` |
 | Hetzner | `['hetzner.com', 'hetzner.de']` |
 | Vercel | `['vercel-dns.com']` |
@@ -146,7 +152,7 @@ import { porkbun } from './porkbun';
 | DigitalOcean | `[{ name: 'apiKey', label: 'API Token', secret: true }]` |
 | Namecheap | `[{ name: 'apiKey', label: 'API Key', secret: true }, { name: 'apiSecret', label: 'Username', secret: false }]` |
 | Route53 | `[{ name: 'apiKey', label: 'Access Key ID', secret: false }, { name: 'apiSecret', label: 'Secret Access Key', secret: true }, { name: 'region', label: 'Region', secret: false }]` |
-| Google | `[{ name: 'apiKey', label: 'API Key or Service Account JSON path', secret: true }]` |
+| Google | `[{ name: 'serviceAccountPath', label: 'Service Account JSON file path', secret: false }, { name: 'projectId', label: 'GCP Project ID', secret: false }]` |
 | GoDaddy | `[{ name: 'apiKey', label: 'API Key', secret: true }, { name: 'apiSecret', label: 'API Secret', secret: true }]` |
 | Hetzner | `[{ name: 'apiKey', label: 'API Token', secret: true }]` |
 | Vercel | `[{ name: 'apiKey', label: 'Bearer Token', secret: true }]` |
@@ -232,25 +238,53 @@ config.providers = {
 
 Old `config.registrar` preserved for one release cycle.
 
+### Config Versioning
+
+Add `configVersion: number` to `MXRouteConfig`. Current (unversioned) configs are treated as version 1. Migration sets `configVersion = 2`. This prevents re-running migration on empty `providers: {}` objects and makes future migrations safe.
+
+### Routing Logic for `routeDnsList`
+
+Same as `routeDnsAdd` but read-only:
+1. Detect provider → if found + credentials exist → `provider.listRecords()`
+2. If MXroute authority → DirectAdmin `listDnsRecords()`
+3. If neither → return empty with error message
+
+### Known Limitations
+
+- **Split-horizon DNS** (subdomain zones delegated to a different provider) is not supported. The router resolves NS for the apex domain only.
+- **Namecheap** remains detection-only — their API requires setting ALL records atomically. The router returns a helpful error message directing users to the web panel.
+- **Route53 STS session tokens** (temporary credentials from IAM roles) are not supported in v1. Use long-lived IAM access keys.
+- **NS caching:** `resolveNs()` results are NOT cached between calls. For batch operations across many domains, this adds latency but ensures correctness after DNS changes.
+
 ---
 
 ## Component 4: New Providers
 
 ### Route53 (AWS)
 
-- API: `route53.amazonaws.com`
-- Auth: AWS Signature Version 4 (implemented inline using Node `crypto` — no aws-sdk dependency)
-- Hosted Zone lookup: `GET /hostedzonesbyname?dnsname={domain}`
-- Record CRUD: `POST /hostedzone/{id}/rrset` with `ChangeResourceRecordSets` XML body
-- Handles paginated hosted zone listing
+- API: `route53.amazonaws.com` (XML-based, not JSON)
+- Auth: AWS Signature Version 4 (inline implementation using Node `crypto`)
+  - Supports IAM access key + secret access key
+  - STS session tokens NOT supported in v1 (long-lived credentials only)
+  - Dedicated SigV4 signing module: `src/providers/aws-sigv4.ts` (~80 lines)
+  - Tested against AWS SigV4 test vectors from AWS documentation
+- Hosted Zone lookup: `GET /2013-04-01/hostedzonesbyname?dnsname={domain}`
+- Record CRUD: `POST /2013-04-01/hostedzone/{id}/rrset` with `ChangeResourceRecordSets` XML body
+  - For delete: requires exact current record values + TTL
+  - Router calls `listRecords()` first to get current state before delete
+- Rate limit: 5 requests/second per hosted zone
+- **Risk mitigation:** If SigV4 proves too fiddly, Route53 will be scoped down to "detection + error message" (like current Namecheap) with a note to use `aws-sdk` or AWS CLI directly. The interface allows this graceful degradation.
 
 ### Google Cloud DNS
 
 - API: `dns.googleapis.com/dns/v1`
-- Auth: API key (query param) or Bearer token
-- Managed Zone lookup: `GET /projects/{project}/managedZones?dnsName={domain}.`
-- Record CRUD: `POST /projects/{project}/managedZones/{zone}/changes`
-- Project ID extracted from service account JSON or prompted
+- Auth: Service account JSON key file (standard for server-side)
+  - Read JSON file from disk, extract `client_email` and `private_key`
+  - Generate JWT, exchange for OAuth2 access token
+  - `credentialFields: [{ name: 'serviceAccountPath', label: 'Path to service account JSON file', secret: false }, { name: 'projectId', label: 'GCP Project ID', secret: false }]`
+- Managed Zone lookup: `GET /projects/{projectId}/managedZones?dnsName={domain}.`
+- Record CRUD: `POST /projects/{projectId}/managedZones/{zone}/changes`
+- Note: API key auth is NOT sufficient for write operations — service account required
 
 ### GoDaddy
 
@@ -309,7 +343,7 @@ Old `config.registrar` preserved for one release cycle.
   voyagerslab.com       → Cloudflare  ✔
 ```
 
-**`mxroute dns providers setup <id>`** — configure credentials for a specific provider.
+**`mxroute dns providers setup <id>`** — configure credentials for a specific provider. This is a NEW lightweight command (just prompts for credentials from `credentialFields` and saves to config). It does NOT replace `mxroute dns setup [domain]` which is the full workflow (detect provider + prompt creds + generate records + create records + verify). The `dns setup` command is modified to use `credentialFields` dynamically and save to `config.providers` instead of `config.registrar`.
 
 ### MCP Tool Changes
 
@@ -326,16 +360,25 @@ Old `config.registrar` preserved for one release cycle.
 
 ### Deprecation of `src/utils/registrars.ts`
 
-Old file becomes a thin re-export shim:
+Old file becomes a thin re-export shim with a compatibility type:
 
 ```typescript
 // src/utils/registrars.ts (deprecated)
+import { ProviderCredentials } from '../providers/types';
 export { getProvider, listProviders as getProviderList } from '../providers';
-export { DnsRecord, ProviderCredentials as RegistrarConfig } from '../providers/types';
+export { DnsRecord } from '../providers/types';
 export { generateMxrouteRecords } from '../providers/mxroute-records';
+
+// Compatibility type — preserves typed fields that fix.ts and dns-setup.ts use
+export interface RegistrarConfig extends ProviderCredentials {
+  provider: string;
+  apiKey: string;
+  apiSecret?: string;
+  accountId?: string;
+}
 ```
 
-All imports from `registrars.ts` continue to work. File removed after one release.
+All imports from `registrars.ts` continue to work. Consuming code (`fix.ts`, `dns-setup.ts`) updated to use the router in the same PR, so the shim is only needed for any external consumers. File removed after one release.
 
 ### `checkNameservers()` in `dns.ts`
 
