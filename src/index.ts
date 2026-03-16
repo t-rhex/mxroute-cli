@@ -163,6 +163,22 @@ dnsCmd
     await dnsWatchCommand(domain);
   });
 
+dnsCmd
+  .command('providers')
+  .description('List supported DNS providers and credential status')
+  .action(async () => {
+    const { dnsProvidersCommand } = await import('./commands/dns-providers');
+    await dnsProvidersCommand();
+  });
+
+dnsCmd
+  .command('providers-setup <provider>')
+  .description('Configure credentials for a DNS provider')
+  .action(async (provider: string) => {
+    const { dnsProvidersSetup } = await import('./commands/dns-providers');
+    await dnsProvidersSetup(provider);
+  });
+
 // ─── Info ────────────────────────────────────────────────
 const infoCmd = program.command('info').description('Connection settings, webmail, CalDAV, and service info');
 
