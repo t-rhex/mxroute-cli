@@ -6,6 +6,7 @@ import { theme } from '../utils/theme';
 import { getQuotaUsage, getUserConfig } from '../utils/directadmin';
 import { getCreds } from '../utils/shared';
 import { getConfigPath } from '../utils/config';
+import { isJsonMode, output } from '../utils/json-output';
 
 interface UsageSnapshot {
   timestamp: string;
@@ -66,9 +67,11 @@ function miniSparkline(values: number[], width: number = 20): string {
 export async function usageHistoryCommand(): Promise<void> {
   const creds = getCreds();
 
-  console.log(theme.heading('Usage History'));
+  if (!isJsonMode()) console.log(theme.heading('Usage History'));
 
-  const spinner = ora({ text: 'Recording current usage...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Recording current usage...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const [usage, config] = await Promise.all([getQuotaUsage(creds), getUserConfig(creds)]);
@@ -95,7 +98,14 @@ export async function usageHistoryCommand(): Promise<void> {
       saveHistory(history);
     }
 
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      output('snapshot', snapshot);
+      output('history', history);
+      output('snapshotCount', history.length);
+      return;
+    }
 
     if (history.length < 2) {
       console.log(theme.muted('  First snapshot recorded! Run this command periodically to track trends.'));
@@ -174,7 +184,7 @@ export async function usageHistoryCommand(): Promise<void> {
       }
     }
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to record usage'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to record usage'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }

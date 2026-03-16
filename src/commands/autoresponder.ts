@@ -12,18 +12,27 @@ import {
   listEmailAccounts,
 } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function autoresponderList(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Autoresponders: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Autoresponders: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Fetching autoresponders...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching autoresponders...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const autoresponders = await listAutoresponders(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('autoresponders', autoresponders);
+      return;
+    }
 
     if (autoresponders.length === 0) {
       console.log(theme.muted('  No autoresponders found.'));
@@ -56,8 +65,8 @@ export async function autoresponderList(domain?: string): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${autoresponders.length} autoresponder${autoresponders.length !== 1 ? 's' : ''}\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch autoresponders'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch autoresponders'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

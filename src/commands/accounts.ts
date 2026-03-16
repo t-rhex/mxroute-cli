@@ -5,18 +5,27 @@ import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { listEmailAccounts, createEmailAccount, deleteEmailAccount, changeEmailPassword } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function accountsList(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Email Accounts: ${targetDomain}`));
+  if (!targetDomain) return;
 
-  const spinner = ora({ text: 'Fetching accounts...', spinner: 'dots12', color: 'cyan' }).start();
+  if (!isJsonMode()) console.log(theme.heading(`Email Accounts: ${targetDomain}`));
+
+  const spinner = isJsonMode() ? null : ora({ text: 'Fetching accounts...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const accounts = await listEmailAccounts(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('accounts', accounts);
+      return;
+    }
 
     if (accounts.length === 0) {
       console.log(theme.muted('  No email accounts found.'));
@@ -37,8 +46,8 @@ export async function accountsList(domain?: string): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${accounts.length} account${accounts.length !== 1 ? 's' : ''}\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch accounts'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch accounts'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

@@ -5,20 +5,27 @@ import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { listDomainPointers, addDomainPointer, deleteDomainPointer } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function aliasesList(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Aliases: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Aliases: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Fetching aliases...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode() ? null : ora({ text: 'Fetching aliases...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const pointers = await listDomainPointers(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
 
     const aliasList = Object.keys(pointers).filter((k) => k !== 'error' && k !== 'text');
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('aliases', aliasList);
+      return;
+    }
 
     if (aliasList.length === 0) {
       console.log(theme.muted('  No aliases found.\n'));
@@ -38,8 +45,8 @@ export async function aliasesList(domain?: string): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${aliasList.length} alias${aliasList.length !== 1 ? 'es' : ''}\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch aliases'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch aliases'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

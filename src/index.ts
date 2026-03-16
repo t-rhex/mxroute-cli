@@ -7,6 +7,7 @@ process.on('warning', (w) => {
 
 import { Command } from 'commander';
 import { theme } from './utils/theme';
+import { setJsonMode, flush } from './utils/json-output';
 
 const pkg = require('../package.json');
 
@@ -17,6 +18,15 @@ program
   .description('A powerful CLI for managing MXroute email hosting')
   .version(pkg.version, '-v, --version')
   .addHelpText('beforeAll', theme.banner());
+
+program.option('--json', 'Output as JSON (for scripting)');
+program.hook('preAction', (thisCommand) => {
+  const opts = thisCommand.opts();
+  if (opts.json) setJsonMode(true);
+});
+program.hook('postAction', () => {
+  flush();
+});
 
 // ─── Setup Wizard ────────────────────────────────────────
 program
@@ -1296,6 +1306,66 @@ quotaPolicyCmd
   .action(async (domain?: string) => {
     const { quotaPolicyGenerate } = await import('./commands/quota-policy');
     await quotaPolicyGenerate(domain);
+  });
+
+// ─── Guide ───────────────────────────────────────────────
+program
+  .command('guide [topic]')
+  .alias('learn')
+  .description('Interactive command explorer with examples')
+  .action(async (topic?: string) => {
+    const { guideCommand } = await import('./commands/guide');
+    await guideCommand(topic);
+  });
+
+// ─── Suggest ─────────────────────────────────────────────
+program
+  .command('suggest <prompt>')
+  .alias('find-command')
+  .description('Find the right command from a description')
+  .action(async (prompt: string) => {
+    const { suggestCommand } = await import('./commands/suggest');
+    suggestCommand(prompt);
+  });
+
+// ─── Playbook ────────────────────────────────────────────
+const playbookCmd = program.command('playbook').description('Declarative YAML workflow runner');
+
+playbookCmd
+  .command('run <file>')
+  .description('Execute a playbook')
+  .option('--var <key=value...>', 'Set variables', (val: string, prev: string[]) => [...prev, val], [])
+  .option('--dry-run', 'Show what would be executed without running')
+  .action(async (file: string, options: any) => {
+    const { playbookRun } = await import('./commands/playbook');
+    await playbookRun(file, options);
+  });
+
+playbookCmd
+  .command('validate <file>')
+  .description('Validate a playbook YAML file')
+  .action(async (file: string) => {
+    const { playbookValidate } = await import('./commands/playbook');
+    playbookValidate(file);
+  });
+
+playbookCmd
+  .command('list')
+  .alias('ls')
+  .description('List saved playbooks')
+  .action(async () => {
+    const { playbookList } = await import('./commands/playbook');
+    playbookList();
+  });
+
+// ─── Dashboard ──────────────────────────────────────────
+program
+  .command('dashboard')
+  .alias('dash')
+  .description('Live full-screen terminal dashboard')
+  .action(async () => {
+    const { dashboardCommand } = await import('./commands/dashboard');
+    await dashboardCommand();
   });
 
 // ─── Default action (no command) ─────────────────────────

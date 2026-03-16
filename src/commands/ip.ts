@@ -2,6 +2,7 @@ import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { resolveServerIp, checkAllBlacklists, getBlacklistCount } from '../utils/blacklist';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function ipCheckCommand(server?: string): Promise<void> {
   const config = getConfig();
@@ -22,28 +23,45 @@ export async function ipCheckCommand(server?: string): Promise<void> {
     return;
   }
 
-  console.log(theme.heading('IP Reputation Check'));
+  if (!isJsonMode()) console.log(theme.heading('IP Reputation Check'));
 
   // Resolve IP
-  const ipSpinner = ora({ text: `Resolving ${hostname}...`, spinner: 'dots12', color: 'cyan' }).start();
+  const ipSpinner = isJsonMode()
+    ? null
+    : ora({ text: `Resolving ${hostname}...`, spinner: 'dots12', color: 'cyan' }).start();
   let ip: string;
   try {
     ip = await resolveServerIp(hostname);
-    ipSpinner.succeed(`${hostname} → ${ip}`);
+    if (!isJsonMode()) ipSpinner?.succeed(`${hostname} → ${ip}`);
+    else ipSpinner?.stop();
   } catch (err: any) {
-    ipSpinner.fail(err.message);
+    ipSpinner?.fail(err.message);
     return;
   }
 
   // Check blacklists
   const total = getBlacklistCount();
-  const blSpinner = ora({ text: `Checking ${total} blacklists...`, spinner: 'dots12', color: 'cyan' }).start();
+  const blSpinner = isJsonMode()
+    ? null
+    : ora({ text: `Checking ${total} blacklists...`, spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const results = await checkAllBlacklists(ip);
-    blSpinner.stop();
+    blSpinner?.stop();
 
     const listed = results.filter((r) => r.listed);
+
+    if (isJsonMode()) {
+      output('ip', ip);
+      output('hostname', hostname);
+      output(
+        'results',
+        results.map((r) => ({ list: r.list, listed: r.listed, response: r.response || null })),
+      );
+      output('listedCount', listed.length);
+      output('totalChecked', total);
+      return;
+    }
 
     console.log('');
     for (const r of results) {
@@ -72,7 +90,7 @@ export async function ipCheckCommand(server?: string): Promise<void> {
     }
     console.log('');
   } catch (err: any) {
-    blSpinner.fail('Blacklist check failed');
-    console.log(theme.error(`  ${err.message}\n`));
+    blSpinner?.fail('Blacklist check failed');
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }

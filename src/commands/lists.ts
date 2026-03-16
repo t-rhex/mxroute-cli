@@ -12,18 +12,27 @@ import {
   removeMailingListMember,
 } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function mailingListsList(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Mailing Lists: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Mailing Lists: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Fetching mailing lists...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching mailing lists...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const lists = await listMailingLists(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('lists', lists);
+      return;
+    }
 
     if (lists.length === 0) {
       console.log(theme.muted('  No mailing lists found.'));
@@ -45,8 +54,8 @@ export async function mailingListsList(domain?: string): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${lists.length} mailing list${lists.length !== 1 ? 's' : ''}\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch mailing lists'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch mailing lists'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

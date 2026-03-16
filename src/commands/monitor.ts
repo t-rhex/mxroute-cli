@@ -6,6 +6,7 @@ import { getCreds } from '../utils/shared';
 import { listDomains } from '../utils/directadmin';
 import { checkSpfRecord, checkDkimRecord, checkMxRecords } from '../utils/dns';
 import { sendEmail } from '../utils/api';
+import { isJsonMode, output } from '../utils/json-output';
 
 interface PortCheckResult {
   host: string;
@@ -46,7 +47,7 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
   const server = config.server;
 
   if (!server) {
-    if (!options.quiet) {
+    if (!options.quiet && !isJsonMode()) {
       console.log(
         theme.error(`\n  ${theme.statusIcon('fail')} Not configured. Run ${theme.bold('mxroute config setup')}\n`),
       );
@@ -57,7 +58,7 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
   const hostname = `${server}.mxrouting.net`;
   const issues: string[] = [];
 
-  if (!options.quiet) {
+  if (!options.quiet && !isJsonMode()) {
     console.log(theme.heading('Monitor Check'));
     console.log(theme.muted(`  Server: ${hostname}\n`));
   }
@@ -70,13 +71,15 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
     { port: 143, service: 'IMAP (STARTTLS)' },
   ];
 
-  if (!options.quiet) {
+  if (!options.quiet && !isJsonMode()) {
     console.log(theme.subheading('Port Connectivity'));
   }
 
+  const portChecks: Array<{ service: string; port: number; open: boolean; responseTime: number }> = [];
   for (const { port, service } of ports) {
     const result = await checkPort(hostname, port, service);
-    if (!options.quiet) {
+    portChecks.push({ service, port, open: result.open, responseTime: result.responseTime });
+    if (!options.quiet && !isJsonMode()) {
       const icon = result.open ? theme.statusIcon('pass') : theme.statusIcon('fail');
       const status = result.open ? theme.success(`${result.responseTime}ms`) : theme.error('unreachable');
       console.log(`    ${icon} ${theme.bold(service.padEnd(20))} ${status}`);
@@ -99,17 +102,20 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
     domains = [config.domain];
   }
 
-  if (domains.length > 0 && !options.quiet) {
+  if (domains.length > 0 && !options.quiet && !isJsonMode()) {
     console.log('');
     console.log(theme.subheading('DNS Status'));
   }
 
+  const dnsStatus: Array<{ domain: string; mx: string; spf: string; dkim: string }> = [];
   for (const domain of domains) {
     const mx = await checkMxRecords(domain, server);
     const spf = await checkSpfRecord(domain);
     const dkim = await checkDkimRecord(domain);
 
-    if (!options.quiet) {
+    dnsStatus.push({ domain, mx: mx.status, spf: spf.status, dkim: dkim.status });
+
+    if (!options.quiet && !isJsonMode()) {
       const mxIcon = mx.status === 'pass' ? theme.statusIcon('pass') : theme.statusIcon('fail');
       const spfIcon = spf.status === 'pass' ? theme.statusIcon('pass') : theme.statusIcon('fail');
       const dkimIcon = dkim.status === 'pass' ? theme.statusIcon('pass') : theme.statusIcon('fail');
@@ -119,6 +125,14 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
     if (mx.status === 'fail') issues.push(`${domain}: MX records not configured correctly`);
     if (spf.status === 'fail') issues.push(`${domain}: SPF record missing or incorrect`);
     if (dkim.status === 'fail') issues.push(`${domain}: DKIM record missing`);
+  }
+
+  if (isJsonMode()) {
+    output('hostname', hostname);
+    output('portChecks', portChecks);
+    output('dnsStatus', dnsStatus);
+    output('issues', issues);
+    return;
   }
 
   // 3. Summary

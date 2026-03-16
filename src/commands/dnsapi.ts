@@ -5,6 +5,7 @@ import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { listDnsRecords, addDnsRecord, deleteDnsRecord, getDkimKey } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 interface DnsRecord {
   type: string;
@@ -120,19 +121,27 @@ export async function dnsapiList(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`DNS Records: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`DNS Records: ${targetDomain}`));
 
-  const spinner = ora({
-    text: `Fetching DNS records for ${targetDomain}...`,
-    spinner: 'dots12',
-    color: 'cyan',
-  }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({
+        text: `Fetching DNS records for ${targetDomain}...`,
+        spinner: 'dots12',
+        color: 'cyan',
+      }).start();
 
   try {
     const raw = await listDnsRecords(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
 
     const records = parseRecords(raw);
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('records', records);
+      return;
+    }
 
     if (records.length === 0) {
       console.log(theme.muted('  No DNS records found.\n'));
@@ -178,8 +187,8 @@ export async function dnsapiList(domain?: string): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${records.length} record${records.length !== 1 ? 's' : ''} found\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch DNS records'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch DNS records'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 
@@ -349,13 +358,25 @@ export async function dnsapiDkim(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`DKIM Key: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`DKIM Key: ${targetDomain}`));
 
-  const spinner = ora({ text: `Fetching DKIM key for ${targetDomain}...`, spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: `Fetching DKIM key for ${targetDomain}...`, spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const dkimValue = await getDkimKey(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    const recordName = `x._domainkey.${targetDomain}`;
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('recordName', recordName);
+      output('value', dkimValue || null);
+      output('found', !!dkimValue);
+      return;
+    }
 
     if (!dkimValue) {
       console.log(`  ${theme.statusIcon('warn')} ${theme.warning('No DKIM key found for this domain.')}\n`);
@@ -368,8 +389,6 @@ export async function dnsapiDkim(domain?: string): Promise<void> {
       console.log('');
       return;
     }
-
-    const recordName = `x._domainkey.${targetDomain}`;
 
     console.log(
       theme.box(
@@ -391,7 +410,7 @@ export async function dnsapiDkim(domain?: string): Promise<void> {
     console.log(theme.muted(`    Value:  ${dkimValue}`));
     console.log('');
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch DKIM key'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch DKIM key'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }

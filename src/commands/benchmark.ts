@@ -2,6 +2,7 @@ import * as net from 'net';
 import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
+import { isJsonMode, output } from '../utils/json-output';
 
 interface BenchResult {
   service: string;
@@ -59,8 +60,10 @@ export async function benchmarkCommand(): Promise<void> {
 
   const hostname = `${server}.mxrouting.net`;
 
-  console.log(theme.heading(`Benchmark: ${hostname}`));
-  console.log(theme.muted('  Testing connection speed to your MXroute server...\n'));
+  if (!isJsonMode()) {
+    console.log(theme.heading(`Benchmark: ${hostname}`));
+    console.log(theme.muted('  Testing connection speed to your MXroute server...\n'));
+  }
 
   const ports = [
     { port: 993, service: 'IMAP SSL' },
@@ -74,26 +77,54 @@ export async function benchmarkCommand(): Promise<void> {
   const results: BenchResult[] = [];
 
   for (const { port, service } of ports) {
-    const spinner = ora({ text: `Testing ${service} (${port})...`, spinner: 'dots12', color: 'cyan' }).start();
+    const spinner = isJsonMode()
+      ? null
+      : ora({ text: `Testing ${service} (${port})...`, spinner: 'dots12', color: 'cyan' }).start();
     const result = await benchPort(hostname, port, service);
     results.push(result);
 
-    if (result.connected) {
-      spinner.succeed(
-        `${theme.bold(service.padEnd(16))} ` +
-          `connect: ${colorLatency(result.connectTime)}  ` +
-          `banner: ${colorLatency(result.bannerTime)}`,
-      );
-    } else {
-      spinner.fail(`${theme.bold(service.padEnd(16))} unreachable`);
+    if (!isJsonMode()) {
+      if (result.connected) {
+        spinner?.succeed(
+          `${theme.bold(service.padEnd(16))} ` +
+            `connect: ${colorLatency(result.connectTime)}  ` +
+            `banner: ${colorLatency(result.bannerTime)}`,
+        );
+      } else {
+        spinner?.fail(`${theme.bold(service.padEnd(16))} unreachable`);
+      }
     }
   }
 
   // Summary
   const connected = results.filter((r) => r.connected);
+  const avgConnect =
+    connected.length > 0 ? Math.round(connected.reduce((s, r) => s + r.connectTime, 0) / connected.length) : 0;
+  const avgBanner =
+    connected.length > 0 ? Math.round(connected.reduce((s, r) => s + r.bannerTime, 0) / connected.length) : 0;
+
+  if (isJsonMode()) {
+    output('hostname', hostname);
+    output(
+      'results',
+      results.map((r) => ({
+        service: r.service,
+        port: r.port,
+        connected: r.connected,
+        connectTime: r.connectTime,
+        bannerTime: r.bannerTime,
+      })),
+    );
+    output('avgConnect', avgConnect);
+    output('avgResponse', avgBanner);
+    return;
+  }
+
   if (connected.length > 0) {
-    const avgConnect = Math.round(connected.reduce((s, r) => s + r.connectTime, 0) / connected.length);
-    const avgBanner = Math.round(connected.reduce((s, r) => s + r.bannerTime, 0) / connected.length);
+    let rating = 'Excellent';
+    if (avgBanner > 500) rating = 'Slow';
+    else if (avgBanner > 200) rating = 'Fair';
+    else if (avgBanner > 100) rating = 'Good';
 
     console.log('');
     console.log(theme.separator());
@@ -101,12 +132,6 @@ export async function benchmarkCommand(): Promise<void> {
     console.log(theme.keyValue('Avg Connect', `${avgConnect}ms`));
     console.log(theme.keyValue('Avg Response', `${avgBanner}ms`));
     console.log(theme.keyValue('Services Up', `${connected.length}/${results.length}`));
-
-    let rating = 'Excellent';
-    if (avgBanner > 500) rating = 'Slow';
-    else if (avgBanner > 200) rating = 'Fair';
-    else if (avgBanner > 100) rating = 'Good';
-
     console.log(theme.keyValue('Rating', rating));
     console.log('');
   }

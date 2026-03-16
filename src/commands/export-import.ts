@@ -3,6 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getCreds, pickDomain } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 import {
   listEmailAccounts,
   listForwarders,
@@ -31,9 +32,11 @@ export async function exportCommand(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Export: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Export: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Exporting configuration...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Exporting configuration...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const [accounts, forwarders, autoresponders, catchAll, spamConfig] = await Promise.all([
@@ -77,7 +80,18 @@ export async function exportCommand(domain?: string): Promise<void> {
       spamConfig,
     };
 
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      output('domain', targetDomain);
+      output('exportedAt', exportData.exportedAt);
+      output('accounts', exportData.accounts);
+      output('forwarders', exportData.forwarders);
+      output('autoresponders', exportData.autoresponders);
+      output('catchAll', exportData.catchAll);
+      output('spamConfig', exportData.spamConfig);
+      return;
+    }
 
     const filename = `mxroute-export-${targetDomain}-${new Date().toISOString().split('T')[0]}.json`;
 
@@ -101,8 +115,8 @@ export async function exportCommand(domain?: string): Promise<void> {
     );
     console.log('');
   } catch (err: any) {
-    spinner.fail('Export failed');
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail('Export failed');
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

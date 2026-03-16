@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "outDir": "dist"
+  },
+  "include": ["src/commands/dashboard-app.tsx", "src/commands/dashboard/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

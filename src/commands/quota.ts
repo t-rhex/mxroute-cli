@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getQuotaUsage, getUserConfig, listEmailAccounts, changeEmailQuota } from '../utils/directadmin';
 import { getCreds, pickDomain } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 function buildBar(used: number, total: number, width = 20): string {
   if (total <= 0) return chalk.hex('#7C8DB0')('unlimited');
@@ -28,13 +29,15 @@ function formatSize(mb: number): string {
 export async function quotaOverview(): Promise<void> {
   const creds = getCreds();
 
-  console.log(theme.heading('Account Quota Overview'));
+  if (!isJsonMode()) console.log(theme.heading('Account Quota Overview'));
 
-  const spinner = ora({ text: 'Fetching quota information...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching quota information...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const [usage, config] = await Promise.all([getQuotaUsage(creds), getUserConfig(creds)]);
-    spinner.stop();
+    spinner?.stop();
 
     const diskUsed = Number(usage.quota || usage.disk || 0);
     const diskLimit = Number(config.quota || config.disk || 0);
@@ -46,6 +49,16 @@ export async function quotaOverview(): Promise<void> {
     const domainLimit = Number(config.vdomains || config.ndomains || config.domains || 0);
     const fwdUsed = Number(usage.ftp || usage.nemailf || usage.forwarders || 0);
     const fwdLimit = Number(config.ftp || config.nemailf || config.forwarders || 0);
+
+    if (isJsonMode()) {
+      output('diskUsed', diskUsed);
+      output('diskLimit', diskLimit);
+      output('bandwidth', { used: bwUsed, limit: bwLimit });
+      output('emailAccounts', { used: emailUsed, limit: emailLimit });
+      output('domains', { used: domainUsed, limit: domainLimit });
+      output('forwarders', { used: fwdUsed, limit: fwdLimit });
+      return;
+    }
 
     const lines: string[] = [];
 
@@ -96,8 +109,8 @@ export async function quotaOverview(): Promise<void> {
     console.log(theme.box(lines.join('\n'), 'Resource Usage'));
     console.log('');
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch quota information'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch quota information'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

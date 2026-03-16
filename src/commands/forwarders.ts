@@ -5,18 +5,37 @@ import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { listForwarders, getForwarderDestination, createForwarder, deleteForwarder } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
+import { isJsonMode, output } from '../utils/json-output';
 
 export async function forwardersList(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
 
-  console.log(theme.heading(`Forwarders: ${targetDomain}`));
+  if (!isJsonMode()) console.log(theme.heading(`Forwarders: ${targetDomain}`));
 
-  const spinner = ora({ text: 'Fetching forwarders...', spinner: 'dots12', color: 'cyan' }).start();
+  const spinner = isJsonMode()
+    ? null
+    : ora({ text: 'Fetching forwarders...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
     const forwarders = await listForwarders(creds, targetDomain);
-    spinner.stop();
+    spinner?.stop();
+
+    if (isJsonMode()) {
+      const fwdDetails: { from: string; to: string }[] = [];
+      for (const fwd of forwarders) {
+        let dest = '';
+        try {
+          dest = await getForwarderDestination(creds, targetDomain, fwd);
+        } catch {
+          dest = '';
+        }
+        fwdDetails.push({ from: `${fwd}@${targetDomain}`, to: dest });
+      }
+      output('domain', targetDomain);
+      output('forwarders', fwdDetails);
+      return;
+    }
 
     if (forwarders.length === 0) {
       console.log(theme.muted('  No forwarders found.'));
@@ -44,8 +63,8 @@ export async function forwardersList(domain?: string): Promise<void> {
     console.log(table.toString());
     console.log(theme.muted(`\n  ${forwarders.length} forwarder${forwarders.length !== 1 ? 's' : ''}\n`));
   } catch (err: any) {
-    spinner.fail(chalk.red('Failed to fetch forwarders'));
-    console.log(theme.error(`  ${err.message}\n`));
+    spinner?.fail(chalk.red('Failed to fetch forwarders'));
+    if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
   }
 }
 

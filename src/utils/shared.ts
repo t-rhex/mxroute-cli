@@ -3,10 +3,15 @@ import inquirer from 'inquirer';
 import { theme } from './theme';
 import { getConfig } from './config';
 import { listDomains, DACredentials } from './directadmin';
+import { isJsonMode, outputError } from './json-output';
 
 export function getCreds(): DACredentials {
   const config = getConfig();
   if (!config.daUsername || !config.daLoginKey) {
+    if (isJsonMode()) {
+      outputError('AUTH_REQUIRED', 'Not authenticated. Run mxroute config setup first.');
+      return { server: '', username: '', loginKey: '' };
+    }
     console.log(
       theme.error(
         `\n  ${theme.statusIcon('fail')} Not authenticated. Run ${theme.bold('mxroute config setup')} first.\n`,
@@ -22,6 +27,11 @@ export async function pickDomain(creds: DACredentials, domain?: string): Promise
 
   const config = getConfig();
   if (config.domain) return config.domain;
+
+  if (isJsonMode()) {
+    outputError('MISSING_ARG', 'domain argument required');
+    return '';
+  }
 
   const spinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
   const domains = await listDomains(creds);
