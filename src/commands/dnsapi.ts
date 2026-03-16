@@ -6,6 +6,9 @@ import { theme } from '../utils/theme';
 import { listDnsRecords, addDnsRecord, deleteDnsRecord, getDkimKey } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
+import { checkNameservers } from '../utils/dns';
+import { getConfig } from '../utils/config';
+import { getProvider, RegistrarConfig } from '../utils/registrars';
 
 interface DnsRecord {
   type: string;
@@ -195,6 +198,45 @@ export async function dnsapiList(domain?: string): Promise<void> {
 export async function dnsapiAdd(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
+  const config = getConfig();
+
+  // Check if MXroute is the DNS authority
+  const nsInfo = await checkNameservers(targetDomain, config.server);
+  if (!nsInfo.isMxrouteAuthority) {
+    console.log(theme.warning(`\n  ${theme.statusIcon('warn')} ${targetDomain} DNS is NOT managed by MXroute.`));
+    console.log(theme.muted(`  Nameservers: ${nsInfo.nameservers.join(', ')}`));
+    if (nsInfo.provider) {
+      console.log(theme.muted(`  DNS provider detected: ${theme.bold(nsInfo.provider)}`));
+    }
+    console.log(theme.warning(`\n  Adding records to DirectAdmin will have NO effect.`));
+
+    // Try to use registrar API instead
+    const registrar = (config as any).registrar;
+    if (registrar && nsInfo.provider && registrar.provider === nsInfo.provider) {
+      console.log(
+        theme.success(`\n  ${theme.statusIcon('pass')} You have ${nsInfo.provider} configured. Redirecting...\n`),
+      );
+      const { dnsSetup } = await import('./dns-setup');
+      await dnsSetup(targetDomain);
+      return;
+    }
+
+    console.log(theme.info(`\n  ${theme.statusIcon('info')} To manage DNS records:`));
+    console.log(
+      theme.muted(`  - Run ${theme.bold(`mxroute dns setup ${targetDomain}`)} to configure via registrar API`),
+    );
+    console.log(theme.muted(`  - Or add records directly in your DNS provider's dashboard\n`));
+
+    const { proceed } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'proceed',
+        message: 'Add to DirectAdmin anyway? (will NOT take effect)',
+        default: false,
+      },
+    ]);
+    if (!proceed) return;
+  }
 
   console.log(theme.heading(`Add DNS Record to ${targetDomain}`));
 
@@ -278,6 +320,29 @@ export async function dnsapiAdd(domain?: string): Promise<void> {
 export async function dnsapiDelete(domain?: string): Promise<void> {
   const creds = getCreds();
   const targetDomain = await pickDomain(creds, domain);
+  const config = getConfig();
+
+  // Check if MXroute is the DNS authority
+  const nsInfo = await checkNameservers(targetDomain, config.server);
+  if (!nsInfo.isMxrouteAuthority) {
+    console.log(theme.warning(`\n  ${theme.statusIcon('warn')} ${targetDomain} DNS is NOT managed by MXroute.`));
+    console.log(theme.muted(`  Nameservers: ${nsInfo.nameservers.join(', ')}`));
+    if (nsInfo.provider) {
+      console.log(theme.muted(`  DNS provider detected: ${theme.bold(nsInfo.provider)}`));
+    }
+    console.log(theme.warning(`\n  Deleting records from DirectAdmin will have NO effect on live DNS.`));
+    console.log(theme.muted(`  Manage records at your DNS provider (${nsInfo.provider || 'unknown'}) instead.\n`));
+
+    const { proceed } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'proceed',
+        message: 'Delete from DirectAdmin anyway?',
+        default: false,
+      },
+    ]);
+    if (!proceed) return;
+  }
 
   console.log(theme.heading(`Delete DNS Record from ${targetDomain}`));
 

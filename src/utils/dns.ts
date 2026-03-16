@@ -283,6 +283,41 @@ export async function checkCustomHostname(
   }
 }
 
+const resolveNs = promisify(resolver.resolveNs.bind(resolver));
+
+export interface NameserverInfo {
+  domain: string;
+  nameservers: string[];
+  isMxrouteAuthority: boolean;
+  provider: string | null;
+}
+
+/**
+ * Check who the authoritative nameservers are for a domain.
+ * Returns whether MXroute is the DNS authority (i.e. DirectAdmin DNS changes will take effect).
+ */
+export async function checkNameservers(domain: string, server: string): Promise<NameserverInfo> {
+  try {
+    const ns = await resolveNs(domain);
+    const nameservers = ns.map((n: string) => n.toLowerCase().replace(/\.$/, ''));
+    const isMxrouteAuthority = nameservers.some((n: string) => n.includes('mxrouting.net') || n.includes(server));
+
+    let provider: string | null = null;
+    if (nameservers.some((n: string) => n.includes('cloudflare'))) provider = 'cloudflare';
+    else if (nameservers.some((n: string) => n.includes('digitalocean'))) provider = 'digitalocean';
+    else if (nameservers.some((n: string) => n.includes('porkbun'))) provider = 'porkbun';
+    else if (nameservers.some((n: string) => n.includes('registrar-servers') || n.includes('namecheap')))
+      provider = 'namecheap';
+    else if (nameservers.some((n: string) => n.includes('awsdns') || n.includes('amazonaws'))) provider = 'route53';
+    else if (nameservers.some((n: string) => n.includes('google') || n.includes('googledomains'))) provider = 'google';
+    else if (isMxrouteAuthority) provider = 'mxroute';
+
+    return { domain, nameservers, isMxrouteAuthority, provider };
+  } catch {
+    return { domain, nameservers: [], isMxrouteAuthority: false, provider: null };
+  }
+}
+
 export async function runFullDnsCheck(domain: string, server: string): Promise<DnsCheckResult[]> {
   const results = await Promise.all([
     checkMxRecords(domain, server),
