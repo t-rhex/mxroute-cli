@@ -3,10 +3,10 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { listDnsRecords, getDkimKey } from '../utils/directadmin';
+import { getDkimKey } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
-import { routeDnsAdd, routeDnsDelete } from '../utils/dns-router';
+import { routeDnsAdd, routeDnsDelete, routeDnsList } from '../utils/dns-router';
 
 interface DnsRecord {
   type: string;
@@ -133,10 +133,15 @@ export async function dnsapiList(domain?: string): Promise<void> {
       }).start();
 
   try {
-    const raw = await listDnsRecords(creds, targetDomain);
+    const routeResult = await routeDnsList(targetDomain);
     spinner?.stop();
 
-    const records = parseRecords(raw);
+    if (!routeResult.success) {
+      if (!isJsonMode()) console.log(theme.error(`  ${routeResult.message}\n`));
+      return;
+    }
+
+    const records = parseRecords(routeResult.records || []);
 
     if (isJsonMode()) {
       output('domain', targetDomain);
@@ -294,10 +299,15 @@ export async function dnsapiDelete(domain?: string): Promise<void> {
   }).start();
 
   try {
-    const raw = await listDnsRecords(creds, targetDomain);
+    const routeResult = await routeDnsList(targetDomain);
     spinner.stop();
 
-    const records = parseRecords(raw);
+    if (!routeResult.success) {
+      console.log(theme.error(`  ${routeResult.message}\n`));
+      return;
+    }
+
+    const records = parseRecords(routeResult.records || []);
 
     if (records.length === 0) {
       console.log(theme.muted('  No DNS records to delete.\n'));
@@ -345,20 +355,20 @@ export async function dnsapiDelete(domain?: string): Promise<void> {
     }
 
     const delSpinner = ora({ text: 'Deleting DNS record...', spinner: 'dots12', color: 'red' }).start();
-    const routeResult = await routeDnsDelete(targetDomain, {
+    const deleteResult = await routeDnsDelete(targetDomain, {
       type: selected.type,
       name: selected.name,
       value: selected.value,
     });
 
-    if (routeResult.success) {
+    if (deleteResult.success) {
       delSpinner.succeed(
-        chalk.green(`Deleted ${selected.type} record from ${targetDomain} via ${routeResult.provider}`),
+        chalk.green(`Deleted ${selected.type} record from ${targetDomain} via ${deleteResult.provider}`),
       );
       console.log('');
     } else {
       delSpinner.fail(chalk.red('Failed to delete DNS record'));
-      console.log(theme.error(`  ${routeResult.message}\n`));
+      console.log(theme.error(`  ${deleteResult.message}\n`));
     }
   } catch (err: any) {
     spinner.stop();

@@ -87,15 +87,52 @@ export const godaddy: DnsProvider = {
   },
 
   async deleteRecord(creds: ProviderCredentials, domain: string, record: DnsRecord): Promise<ProviderResult> {
-    const res = await fetch(`${API_BASE}/domains/${domain}/records/${record.type}/${record.name}`, {
-      method: 'DELETE',
+    // GET all records of the same type/name
+    const getRes = await fetch(`${API_BASE}/domains/${domain}/records/${record.type}/${record.name}`, {
       headers: { Authorization: authHeader(creds) },
     });
 
-    if (res.status === 204 || res.status === 200) {
+    if (!getRes.ok) {
+      const data = (await getRes.json()) as any;
+      return { success: false, message: data.message || 'Failed to fetch records for deletion' };
+    }
+
+    const existing = (await getRes.json()) as any[];
+
+    if (!Array.isArray(existing) || existing.length === 0) {
+      return { success: false, message: 'Record not found' };
+    }
+
+    // Filter out the record matching the target value
+    const remaining = existing.filter((r: any) => r.data !== record.value);
+
+    // If only one record existed, use DELETE to remove the whole set
+    if (existing.length === 1 || remaining.length === 0) {
+      const res = await fetch(`${API_BASE}/domains/${domain}/records/${record.type}/${record.name}`, {
+        method: 'DELETE',
+        headers: { Authorization: authHeader(creds) },
+      });
+      if (res.status === 204 || res.status === 200) {
+        return { success: true, message: 'Deleted' };
+      }
+      const data = (await res.json()) as any;
+      return { success: false, message: data.message || 'Failed to delete record' };
+    }
+
+    // PUT the remaining records back (preserving others)
+    const putRes = await fetch(`${API_BASE}/domains/${domain}/records/${record.type}/${record.name}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: authHeader(creds),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(remaining),
+    });
+
+    if (putRes.status === 200 || putRes.status === 204) {
       return { success: true, message: 'Deleted' };
     }
-    const data = (await res.json()) as any;
+    const data = (await putRes.json()) as any;
     return { success: false, message: data.message || 'Failed to delete record' };
   },
 };

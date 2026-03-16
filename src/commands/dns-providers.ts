@@ -54,17 +54,6 @@ export async function dnsProvidersCommand(): Promise<void> {
       console.log(theme.muted('  Could not list domains (not authenticated)'));
     }
   }
-  // Show setup hints for unconfigured providers with domains
-  if (config.daUsername && config.daLoginKey) {
-    const unconfiguredProviders = new Set<string>();
-    // Collect which providers need setup (already computed above in domain loop)
-    for (const p of providers) {
-      if (!providerCreds[p.id] && p.id !== 'namecheap') {
-        unconfiguredProviders.add(p.id);
-      }
-    }
-  }
-
   console.log('');
   console.log(theme.subheading('Setup'));
   console.log(theme.muted('  Configure a provider:  mxroute dns providers-setup <provider-id>'));
@@ -216,7 +205,55 @@ export async function dnsProvidersSetup(providerId: string): Promise<void> {
     setConfig('providers', providers);
     console.log(theme.success(`\n  ${theme.statusIcon('pass')} Credentials saved for ${provider.name}\n`));
   } else {
-    spinner.fail(`${provider.name} authentication failed`);
-    console.log(theme.error('\n  Check your credentials and try again.\n'));
+    // Check if this is a detection-only provider (createRecord always returns success:false with a guidance message)
+    const testResult = await provider
+      .createRecord(answers, '__probe__', { type: 'TXT', name: '@', value: 'test' })
+      .catch(() => ({ success: false, message: '' }));
+    const isDetectionOnly =
+      !testResult.success &&
+      testResult.message.length > 0 &&
+      (testResult.message.includes('requires') ||
+        testResult.message.includes('Use:') ||
+        testResult.message.includes('use:') ||
+        testResult.message.includes('web panel'));
+    if (isDetectionOnly) {
+      spinner.stop();
+      // Save credentials anyway for future full support
+      const config = getConfig() as any;
+      const providers = config.providers || {};
+      providers[provider.id] = answers;
+      setConfig('providers', providers);
+      console.log(
+        theme.warning(
+          `\n  Note: ${provider.name} is detection-only in this version. Credentials saved but cannot be validated.`,
+        ),
+      );
+      console.log(theme.muted(`  Operations will show guidance on using the provider's native tools.\n`));
+    } else {
+      spinner.fail(`${provider.name} authentication failed`);
+      console.log(theme.error('\n  Check your credentials and try again.\n'));
+    }
   }
+}
+
+export async function dnsProvidersRemove(providerId: string): Promise<void> {
+  const { getProvider } = await import('../providers');
+  const provider = getProvider(providerId);
+  if (!provider) {
+    const allProviders = listProviders();
+    console.log(theme.error(`\n  Unknown provider: ${providerId}`));
+    console.log(theme.muted(`  Available: ${allProviders.map((p) => p.id).join(', ')}\n`));
+    return;
+  }
+
+  const config = getConfig() as any;
+  const providers = config.providers || {};
+  if (!providers[provider.id]) {
+    console.log(theme.warning(`\n  No credentials configured for ${provider.name}\n`));
+    return;
+  }
+
+  delete providers[provider.id];
+  setConfig('providers', providers);
+  console.log(theme.success(`\n  ${theme.statusIcon('pass')} Credentials removed for ${provider.name}\n`));
 }

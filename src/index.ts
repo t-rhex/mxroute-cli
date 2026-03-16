@@ -179,6 +179,14 @@ dnsCmd
     await dnsProvidersSetup(provider);
   });
 
+dnsCmd
+  .command('providers-remove <provider>')
+  .description('Remove credentials for a DNS provider')
+  .action(async (provider: string) => {
+    const { dnsProvidersRemove } = await import('./commands/dns-providers');
+    await dnsProvidersRemove(provider);
+  });
+
 // ─── Info ────────────────────────────────────────────────
 const infoCmd = program.command('info').description('Connection settings, webmail, CalDAV, and service info');
 

@@ -66,6 +66,7 @@ export const vercel: DnsProvider = {
       value: record.value,
       ttl: record.ttl || 3600,
     };
+    if (record.priority !== undefined) body.mxPriority = record.priority;
 
     const res = await fetch(`${API_BASE}/v2/domains/${domain}/records`, {
       method: 'POST',

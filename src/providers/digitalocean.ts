@@ -74,7 +74,9 @@ export const digitalocean: DnsProvider = {
       headers: { Authorization: `Bearer ${creds.apiKey}` },
     });
     const listData = (await listRes.json()) as any;
-    const match = (listData.domain_records || []).find((r: any) => r.type === record.type && r.name === record.name);
+    const match = (listData.domain_records || []).find(
+      (r: any) => r.type === record.type && r.name === record.name && r.data === record.value,
+    );
     if (!match) return { success: false, message: 'Record not found' };
 
     const res = await fetch(`https://api.digitalocean.com/v2/domains/${domain}/records/${match.id}`, {

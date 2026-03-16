@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { DnsProvider, DnsRecord, ProviderCredentials, ProviderResult } from './types';
 
 export const namecheap: DnsProvider = {
@@ -20,25 +19,12 @@ export const namecheap: DnsProvider = {
     return null;
   },
 
-  async authenticate(creds: ProviderCredentials): Promise<boolean> {
-    try {
-      return !!(creds.apiKey && creds.apiSecret);
-    } catch {
-      return false;
-    }
+  async authenticate(_creds: ProviderCredentials): Promise<boolean> {
+    return false;
   },
 
-  async listZones(creds: ProviderCredentials): Promise<string[]> {
-    const url = `https://api.namecheap.com/xml.response?ApiUser=${creds.apiSecret}&ApiKey=${creds.apiKey}&UserName=${creds.apiSecret}&ClientIp=0.0.0.0&Command=namecheap.domains.getList`;
-    const res = await fetch(url);
-    const text = await res.text();
-    const domains: string[] = [];
-    const regex = /Name="([^"]+)"/g;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      domains.push(match[1]);
-    }
-    return domains;
+  async listZones(_creds: ProviderCredentials): Promise<string[]> {
+    return [];
   },
 
   async listRecords(_creds: ProviderCredentials, _domain: string): Promise<DnsRecord[]> {

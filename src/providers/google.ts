@@ -23,7 +23,7 @@ export const google: DnsProvider = {
   },
 
   async authenticate(_creds: ProviderCredentials): Promise<boolean> {
-    return true;
+    return false;
   },
 
   async listZones(_creds: ProviderCredentials): Promise<string[]> {

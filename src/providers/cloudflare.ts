@@ -91,14 +91,15 @@ export const cloudflare: DnsProvider = {
     const zoneId = await getCloudflareZoneId(creds.apiKey!, domain);
     const name = record.name === '@' ? domain : `${record.name}.${domain}`;
     const searchRes = await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${record.type}&name=${name}`,
+      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${record.type}&name=${name}&content=${encodeURIComponent(record.value)}`,
       { headers: { Authorization: `Bearer ${creds.apiKey}` } },
     );
     const searchData = (await searchRes.json()) as any;
     if (!searchData.success || !searchData.result.length) {
       return { success: false, message: 'Record not found' };
     }
-    const recordId = searchData.result[0].id;
+    const match = searchData.result.find((r: any) => r.content === record.value) || searchData.result[0];
+    const recordId = match.id;
     const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${recordId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${creds.apiKey}` },

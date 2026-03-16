@@ -70,13 +70,14 @@ export const hetzner: DnsProvider = {
 
   async createRecord(creds: ProviderCredentials, domain: string, record: DnsRecord): Promise<ProviderResult> {
     const zoneId = await getZoneId(creds, domain);
-    const body = {
+    const body: any = {
       zone_id: zoneId,
       type: record.type,
       name: record.name,
       value: record.value,
       ttl: record.ttl || 3600,
     };
+    if (record.type === 'MX' && record.priority !== undefined) body.priority = record.priority;
 
     const res = await fetch(`${API_BASE}/records`, {
       method: 'POST',
