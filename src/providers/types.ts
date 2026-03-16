@@ -10,7 +10,7 @@ export interface DnsRecord {
 }
 
 export interface ProviderCredentials {
-  [key: string]: string;
+  [key: string]: string | undefined;
 }
 
 export interface ProviderResult {
