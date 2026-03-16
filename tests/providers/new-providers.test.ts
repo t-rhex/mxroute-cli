@@ -155,8 +155,8 @@ describe('AWS Route53 Provider (detection-only)', () => {
   it('validateCredentials accepts valid creds', () => {
     expect(r53.validateCredentials({ apiKey: 'key', apiSecret: 'secret', region: 'us-east-1' })).toBeNull();
   });
-  it('authenticate returns true (detection-only)', async () => {
-    expect(await r53.authenticate({ apiKey: 'key', apiSecret: 'secret', region: 'us-east-1' })).toBe(true);
+  it('authenticate returns false (detection-only, cannot validate)', async () => {
+    expect(await r53.authenticate({ apiKey: 'key', apiSecret: 'secret', region: 'us-east-1' })).toBe(false);
   });
   it('createRecord returns success false with helpful message', async () => {
     const result = await r53.createRecord({ apiKey: 'key', apiSecret: 'secret', region: 'us-east-1' }, 'example.com', {
@@ -219,8 +219,8 @@ describe('Google Cloud DNS Provider (detection-only)', () => {
   it('validateCredentials accepts valid creds', () => {
     expect(gcp.validateCredentials({ serviceAccountPath: '/path/to/sa.json', projectId: 'my-project' })).toBeNull();
   });
-  it('authenticate returns true (detection-only)', async () => {
-    expect(await gcp.authenticate({ serviceAccountPath: '/path/to/sa.json', projectId: 'my-project' })).toBe(true);
+  it('authenticate returns false (detection-only, cannot validate)', async () => {
+    expect(await gcp.authenticate({ serviceAccountPath: '/path/to/sa.json', projectId: 'my-project' })).toBe(false);
   });
   it('createRecord returns success false with helpful message', async () => {
     const result = await gcp.createRecord(
