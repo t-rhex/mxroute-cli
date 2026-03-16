@@ -283,7 +283,7 @@ export async function configProfiles(): Promise<void> {
       lines.push(theme.keyValue('DA Username', config.daUsername, 0));
     }
     if (profile.username) {
-      lines.push(theme.keyValue('SMTP Account', profile.username, 0));
+      lines.push(theme.keyValue('Sending Account', profile.username, 0));
     }
     console.log(theme.box(lines.join('\n'), `${name}${marker}`));
     console.log('');
