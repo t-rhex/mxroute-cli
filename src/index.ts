@@ -1446,6 +1446,17 @@ playbookCmd
     playbookActions();
   });
 
+// ─── Activity Log ────────────────────────────────────────
+program
+  .command('log')
+  .alias('history')
+  .description('Show activity log of CLI operations')
+  .option('-n, --count <number>', 'Number of entries to show', '20')
+  .action(async (options) => {
+    const { logCommand } = await import('./commands/log');
+    logCommand(options);
+  });
+
 // ─── Dashboard ──────────────────────────────────────────
 program
   .command('dashboard')
@@ -1454,6 +1465,24 @@ program
   .action(async () => {
     const { dashboardCommand } = await import('./commands/dashboard');
     await dashboardCommand();
+  });
+
+// ─── Backups ─────────────────────────────────────────────
+program
+  .command('backups')
+  .description('Show auto-backup snapshots from destructive operations')
+  .action(async () => {
+    const { backupsCommand } = await import('./commands/backups');
+    backupsCommand();
+  });
+
+// ─── Update ──────────────────────────────────────────────
+program
+  .command('update')
+  .description('Check for updates and self-update')
+  .action(async () => {
+    const { updateCommand } = await import('./commands/update');
+    await updateCommand();
   });
 
 // ─── Default action (no command) ─────────────────────────

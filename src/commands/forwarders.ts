@@ -6,6 +6,8 @@ import { theme } from '../utils/theme';
 import { listForwarders, getForwarderDestination, createForwarder, deleteForwarder } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
+import { logActivity } from '../utils/activity-log';
+import { snapshotBeforeDelete } from '../utils/auto-backup';
 
 export async function forwardersList(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -119,6 +121,12 @@ export async function forwardersCreate(domain?: string): Promise<void> {
       );
     } else {
       spinner.succeed(chalk.green(`Forwarder created: ${answers.user}@${targetDomain} → ${answers.destination}`));
+      logActivity({
+        action: 'forwarders.create',
+        domain: targetDomain,
+        details: `Created forwarder ${answers.user}@${targetDomain} → ${answers.destination}`,
+        result: 'success',
+      });
       console.log(theme.muted(`\n  View all forwarders: ${theme.bold(`mxroute forwarders list ${targetDomain}`)}\n`));
     }
   } catch (err: any) {
@@ -167,6 +175,20 @@ export async function forwardersDelete(domain?: string): Promise<void> {
       return;
     }
 
+    // Snapshot destination before delete
+    let destination = '';
+    try {
+      destination = await getForwarderDestination(creds, targetDomain, user);
+    } catch {
+      // best-effort
+    }
+    snapshotBeforeDelete({
+      action: 'forwarders.delete',
+      domain: targetDomain,
+      type: 'forwarder',
+      data: { user, destination },
+    });
+
     const delSpinner = ora({ text: 'Deleting forwarder...', spinner: 'dots12', color: 'red' }).start();
     const result = await deleteForwarder(creds, targetDomain, user);
 
@@ -177,6 +199,12 @@ export async function forwardersDelete(domain?: string): Promise<void> {
       );
     } else {
       delSpinner.succeed(chalk.green(`Deleted forwarder ${user}@${targetDomain}`));
+      logActivity({
+        action: 'forwarders.delete',
+        domain: targetDomain,
+        details: `Deleted forwarder ${user}@${targetDomain}`,
+        result: 'success',
+      });
       console.log('');
     }
   } catch (err: any) {

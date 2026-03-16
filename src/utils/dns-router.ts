@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import { getConfig, setConfig } from './config';
 import { detectProvider, getProvider } from '../providers';
 import { DnsRecord, ProviderCredentials } from '../providers/types';
+import { logActivity } from './activity-log';
 import {
   addDnsRecord as daAddDnsRecord,
   deleteDnsRecord as daDeleteDnsRecord,
@@ -99,6 +100,14 @@ export async function routeDnsAdd(domain: string, record: DnsRecord): Promise<Ro
       }
       try {
         const result = await provider.createRecord(creds, domain, record);
+        if (result.success) {
+          logActivity({
+            action: 'dns.add',
+            domain,
+            details: `Added ${record.type} ${record.name} via ${provider.id}`,
+            result: 'success',
+          });
+        }
         return {
           success: result.success,
           message: result.message,
@@ -133,6 +142,14 @@ export async function routeDnsAdd(domain: string, record: DnsRecord): Promise<Ro
       };
       const result = await daAddDnsRecord(creds, domain, record.type, record.name, record.value, record.priority);
       const success = !result.error || result.error === '0';
+      if (success) {
+        logActivity({
+          action: 'dns.add',
+          domain,
+          details: `Added ${record.type} ${record.name} via mxroute`,
+          result: 'success',
+        });
+      }
       return {
         success,
         message: success ? `Added ${record.type} record via DirectAdmin` : result.text || 'Failed',
@@ -189,6 +206,14 @@ export async function routeDnsDelete(domain: string, record: DnsRecord): Promise
       }
       try {
         const result = await provider.deleteRecord(creds, domain, record);
+        if (result.success) {
+          logActivity({
+            action: 'dns.delete',
+            domain,
+            details: `Deleted ${record.type} ${record.name} via ${provider.id}`,
+            result: 'success',
+          });
+        }
         return {
           success: result.success,
           message: result.message,
@@ -221,6 +246,14 @@ export async function routeDnsDelete(domain: string, record: DnsRecord): Promise
       };
       const result = await daDeleteDnsRecord(creds, domain, record.type, record.name, record.value);
       const success = !result.error || result.error === '0';
+      if (success) {
+        logActivity({
+          action: 'dns.delete',
+          domain,
+          details: `Deleted ${record.type} ${record.name} via mxroute`,
+          result: 'success',
+        });
+      }
       return {
         success,
         message: success ? `Deleted ${record.type} record via DirectAdmin` : result.text || 'Failed',

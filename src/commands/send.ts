@@ -6,6 +6,7 @@ import { theme } from '../utils/theme';
 import { sendEmail } from '../utils/api';
 import { validateEmail } from '../utils/shared';
 import { getSendingAccount } from '../utils/sending-account';
+import { logActivity } from '../utils/activity-log';
 
 interface SendOptions {
   to?: string;
@@ -120,6 +121,7 @@ export async function sendCommand(options: SendOptions): Promise<void> {
 
     if (result.success) {
       spinner.succeed(chalk.green('Email sent successfully!'));
+      logActivity({ action: 'email.send', details: `Sent to ${to}: "${subject}"`, result: 'success' });
       console.log(theme.muted(`  ${result.message}\n`));
     } else {
       spinner.fail(chalk.red('Failed to send email'));

@@ -6,6 +6,8 @@ import { theme } from '../utils/theme';
 import { listEmailAccounts, createEmailAccount, deleteEmailAccount, changeEmailPassword } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
+import { logActivity } from '../utils/activity-log';
+import { snapshotBeforeDelete } from '../utils/auto-backup';
 
 export async function accountsList(domain?: string, options?: { all?: boolean }): Promise<void> {
   const creds = getCreds();
@@ -173,6 +175,12 @@ export async function accountsCreate(domain?: string): Promise<void> {
       console.log(theme.error(`  ${msg}\n`));
     } else {
       spinner.succeed(chalk.green(`Created ${answers.user}@${targetDomain}`));
+      logActivity({
+        action: 'accounts.create',
+        domain: targetDomain,
+        details: `Created ${answers.user}@${targetDomain}`,
+        result: 'success',
+      });
       console.log('');
       console.log(
         theme.box(
@@ -236,6 +244,13 @@ export async function accountsDelete(domain?: string): Promise<void> {
       return;
     }
 
+    snapshotBeforeDelete({
+      action: 'accounts.delete',
+      domain: targetDomain,
+      type: 'account',
+      data: { user, email: `${user}@${targetDomain}` },
+    });
+
     const delSpinner = ora({ text: 'Deleting account...', spinner: 'dots12', color: 'red' }).start();
     const result = await deleteEmailAccount(creds, targetDomain, user);
 
@@ -245,6 +260,12 @@ export async function accountsDelete(domain?: string): Promise<void> {
       console.log(theme.error(`  ${msg}\n`));
     } else {
       delSpinner.succeed(chalk.green(`Deleted ${user}@${targetDomain}`));
+      logActivity({
+        action: 'accounts.delete',
+        domain: targetDomain,
+        details: `Deleted ${user}@${targetDomain}`,
+        result: 'success',
+      });
       console.log('');
     }
   } catch (err: any) {
@@ -314,6 +335,12 @@ export async function accountsPasswd(domain?: string): Promise<void> {
       console.log(theme.error(`  ${msg}\n`));
     } else {
       pwSpinner.succeed(chalk.green(`Password updated for ${user}@${targetDomain}`));
+      logActivity({
+        action: 'accounts.passwd',
+        domain: targetDomain,
+        details: `Changed password for ${user}@${targetDomain}`,
+        result: 'success',
+      });
       console.log('');
     }
   } catch (err: any) {

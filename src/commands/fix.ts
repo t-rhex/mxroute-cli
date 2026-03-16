@@ -7,6 +7,7 @@ import { listDomains, listEmailAccounts, getCatchAll, setCatchAll, getDkimKey } 
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
 import { routeDnsAdd, routeDnsDelete } from '../utils/dns-router';
 import { generateMxrouteRecords } from '../providers/mxroute-records';
+import { logActivity } from '../utils/activity-log';
 
 interface FixAction {
   domain: string;
@@ -257,13 +258,26 @@ export async function fixCommand(): Promise<void> {
       const result = await action.execute();
       if (result.success) {
         spinner.succeed(`${action.domain}: ${action.fix}`);
+        logActivity({ action: 'fix', domain: action.domain, details: action.fix, result: 'success' });
         fixed++;
       } else {
         spinner.fail(`${action.domain}: ${result.message}`);
+        logActivity({
+          action: 'fix',
+          domain: action.domain,
+          details: `Failed: ${action.fix} — ${result.message}`,
+          result: 'failed',
+        });
         failed++;
       }
     } catch (err: any) {
       spinner.fail(`${action.domain}: ${err.message}`);
+      logActivity({
+        action: 'fix',
+        domain: action.domain,
+        details: `Error: ${action.fix} — ${err.message}`,
+        result: 'failed',
+      });
       failed++;
     }
   }

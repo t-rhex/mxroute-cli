@@ -5,6 +5,8 @@ import { theme } from '../utils/theme';
 import { getCatchAll, setCatchAll, listEmailAccounts } from '../utils/directadmin';
 import { getCreds, pickDomain, validateEmail } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
+import { logActivity } from '../utils/activity-log';
+import { snapshotBeforeDelete } from '../utils/auto-backup';
 
 export async function catchallGet(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -164,6 +166,19 @@ export async function catchallSet(domain?: string): Promise<void> {
     return;
   }
 
+  // Snapshot current catch-all before changing it
+  try {
+    const currentCatchall = await getCatchAll(creds, targetDomain);
+    snapshotBeforeDelete({
+      action: 'catchall.set',
+      domain: targetDomain,
+      type: 'catchall',
+      data: { previousValue: currentCatchall },
+    });
+  } catch {
+    // best-effort
+  }
+
   const spinner = ora({ text: 'Updating catch-all...', spinner: 'dots12', color: 'cyan' }).start();
 
   try {
@@ -176,6 +191,12 @@ export async function catchallSet(domain?: string): Promise<void> {
       );
     } else {
       spinner.succeed(chalk.green(`Catch-all updated for ${targetDomain}`));
+      logActivity({
+        action: 'catchall.set',
+        domain: targetDomain,
+        details: `Set catch-all for ${targetDomain} to: ${displayValue}`,
+        result: 'success',
+      });
       console.log('');
       console.log(
         theme.box(
