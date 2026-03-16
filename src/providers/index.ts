@@ -1,5 +1,9 @@
 // src/providers/index.ts
 import { DnsProvider } from './types';
+import { cloudflare } from './cloudflare';
+import { porkbun } from './porkbun';
+import { digitalocean } from './digitalocean';
+import { namecheap } from './namecheap';
 
 const registry = new Map<string, DnsProvider>();
 
@@ -24,6 +28,12 @@ export function detectProvider(nameservers: string[]): DnsProvider | null {
   }
   return null;
 }
+
+// Register built-in providers
+registerProvider(cloudflare);
+registerProvider(porkbun);
+registerProvider(digitalocean);
+registerProvider(namecheap);
 
 // Re-export types
 export { DnsProvider, DnsRecord, ProviderCredentials, ProviderResult, CredentialField } from './types';
