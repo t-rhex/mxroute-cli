@@ -18,6 +18,8 @@ interface MXRouteConfig {
   activeProfile: string;
   daUsername: string;
   daLoginKey: string;
+  configVersion: number;
+  providers: Record<string, any>;
 }
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'mxroute-cli');
@@ -41,21 +43,27 @@ function readConfig(): MXRouteConfig {
       activeProfile: 'default',
       daUsername: '',
       daLoginKey: '',
+      configVersion: 1,
+      providers: {},
     };
   }
+  const defaults: MXRouteConfig = {
+    server: '',
+    username: '',
+    password: '',
+    domain: '',
+    profiles: {},
+    activeProfile: 'default',
+    daUsername: '',
+    daLoginKey: '',
+    configVersion: 1,
+    providers: {},
+  };
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    return { ...defaults, ...parsed };
   } catch {
-    return {
-      server: '',
-      username: '',
-      password: '',
-      domain: '',
-      profiles: {},
-      activeProfile: 'default',
-      daUsername: '',
-      daLoginKey: '',
-    };
+    return defaults;
   }
 }
 
