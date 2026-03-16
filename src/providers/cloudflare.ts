@@ -90,15 +90,32 @@ export const cloudflare: DnsProvider = {
   async deleteRecord(creds: ProviderCredentials, domain: string, record: DnsRecord): Promise<ProviderResult> {
     const zoneId = await getCloudflareZoneId(creds.apiKey!, domain);
     const name = record.name === '@' ? domain : `${record.name}.${domain}`;
-    const searchRes = await fetch(
+
+    // Try exact content match first
+    let searchRes = await fetch(
       `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${encodeURIComponent(record.type)}&name=${encodeURIComponent(name)}&content=${encodeURIComponent(record.value)}`,
       { headers: { Authorization: `Bearer ${creds.apiKey}` } },
     );
-    const searchData = (await searchRes.json()) as any;
+    let searchData = (await searchRes.json()) as any;
+
+    // If exact match fails, search by type + name only and match by partial value
+    if (!searchData.success || !searchData.result.length) {
+      searchRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${encodeURIComponent(record.type)}&name=${encodeURIComponent(name)}`,
+        { headers: { Authorization: `Bearer ${creds.apiKey}` } },
+      );
+      searchData = (await searchRes.json()) as any;
+    }
+
     if (!searchData.success || !searchData.result.length) {
       return { success: false, message: 'Record not found' };
     }
-    const match = searchData.result.find((r: any) => r.content === record.value) || searchData.result[0];
+
+    // Match: exact content > partial content match > first result
+    const match =
+      searchData.result.find((r: any) => r.content === record.value) ||
+      searchData.result.find((r: any) => r.content.includes(record.value) || record.value.includes(r.content)) ||
+      searchData.result[0];
     const recordId = match.id;
     const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${recordId}`, {
       method: 'DELETE',
