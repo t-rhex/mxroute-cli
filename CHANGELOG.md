@@ -1,3 +1,17 @@
+## [1.2.2](https://github.com/t-rhex/mxroute-cli/compare/v1.2.1...v1.2.2) (2026-03-16)
+
+### Features
+
+* add activity log — tracks all write operations with mxroute log command ([9d0c2d7](https://github.com/t-rhex/mxroute-cli/commit/9d0c2d7903f4dc13065cfce5374c4f9ea21f161e))
+* add self-update command (mxroute update) ([7d8534f](https://github.com/t-rhex/mxroute-cli/commit/7d8534f7982ac533f711b73ad0d9395f4e9d56ff))
+* auto-backup snapshots before destructive operations ([f58c6f1](https://github.com/t-rhex/mxroute-cli/commit/f58c6f182fd051ac426467261afdd7bfaaf9e663))
+* dns records shows live status (✔/✖/⚠) for each record ([4231223](https://github.com/t-rhex/mxroute-cli/commit/4231223cf32e138052ab753453e45c9d5c41f206))
+* dns setup and onboard check existing records/accounts before creating ([ed3c9b4](https://github.com/t-rhex/mxroute-cli/commit/ed3c9b479cdbce2cfa0786c242f7744ef83f22a8))
+* fix command asks per-action permission for destructive changes, validates DMARC rua address exists ([ad72d0e](https://github.com/t-rhex/mxroute-cli/commit/ad72d0ebefc3d5ffbb73b56773385875c300221b))
+
+### Bug Fixes
+
+* Cloudflare deleteRecord falls back to partial value match when exact match fails ([578852d](https://github.com/t-rhex/mxroute-cli/commit/578852d5e350740793027e4c274d9a39dcc08212))
 ## [1.2.1](https://github.com/t-rhex/mxroute-cli/compare/v1.2.0...v1.2.1) (2026-03-16)
 
 ### Bug Fixes
