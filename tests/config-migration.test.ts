@@ -14,14 +14,14 @@ describe('Config Migration', () => {
     const config = getConfig();
     // When no config file exists (or existing config lacks the field), defaults are returned
     // configVersion default is 1
-    expect(typeof config.configVersion === 'number' || config.configVersion === undefined).toBe(true);
+    expect(typeof config.configVersion).toBe('number');
   });
 
   it('providers default should be an object', () => {
     const { getConfig } = require('../dist/utils/config');
     const config = getConfig();
     // providers should be an object (possibly already populated from real config)
-    expect(typeof config.providers === 'object' || config.providers === undefined).toBe(true);
+    expect(typeof config.providers).toBe('object');
   });
 
   it('migrateConfig should move legacy registrar to providers', () => {
@@ -41,7 +41,7 @@ describe('Config Migration', () => {
     migrateConfig();
     const config = getConfig() as any;
     // After migration, providers should exist
-    expect(config.providers !== undefined || config.providers === undefined).toBe(true);
+    expect(config.providers).toBeDefined();
   });
 
   it('getProviderCreds should return null for unknown provider', () => {

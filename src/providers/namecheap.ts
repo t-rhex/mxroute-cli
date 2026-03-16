@@ -4,16 +4,19 @@ export const namecheap: DnsProvider = {
   id: 'namecheap',
   name: 'Namecheap',
   nsPatterns: ['registrar-servers.com', 'namecheaphosting.com'],
+  detectionOnly: true,
   credentialFields: [
     { name: 'apiKey', label: 'API Key', secret: true },
-    { name: 'apiSecret', label: 'API Username', secret: false },
+    // Field named 'username' (previously 'apiSecret'); renamed for clarity.
+    // Namecheap is detection-only so no saved creds exist to break.
+    { name: 'username', label: 'API Username', secret: false },
   ],
 
   validateCredentials(creds: ProviderCredentials): string | null {
     if (!creds.apiKey || creds.apiKey.trim() === '') {
       return 'API Key is required';
     }
-    if (!creds.apiSecret || creds.apiSecret.trim() === '') {
+    if (!creds.username || creds.username.trim() === '') {
       return 'API Username is required';
     }
     return null;

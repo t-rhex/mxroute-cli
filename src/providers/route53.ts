@@ -7,6 +7,7 @@ export const route53: DnsProvider = {
   id: 'route53',
   name: 'AWS Route53',
   nsPatterns: ['awsdns', 'amzndns'],
+  detectionOnly: true,
   credentialFields: [
     { name: 'apiKey', label: 'Access Key ID', secret: false },
     { name: 'apiSecret', label: 'Secret Access Key', secret: true },

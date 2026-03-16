@@ -7,6 +7,7 @@ export const google: DnsProvider = {
   id: 'google',
   name: 'Google Cloud DNS',
   nsPatterns: ['ns-cloud'],
+  detectionOnly: true,
   credentialFields: [
     { name: 'serviceAccountPath', label: 'Service Account JSON file path', secret: false },
     { name: 'projectId', label: 'GCP Project ID', secret: false },

@@ -29,6 +29,8 @@ export interface DnsProvider {
   name: string;
   nsPatterns: string[];
   credentialFields: CredentialField[];
+  /** If true, this provider is detection-only and cannot create/delete records via API. */
+  detectionOnly?: boolean;
 
   validateCredentials(creds: ProviderCredentials): string | null;
   authenticate(creds: ProviderCredentials): Promise<boolean>;

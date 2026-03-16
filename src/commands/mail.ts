@@ -7,7 +7,7 @@ import * as tls from 'tls';
 import { theme } from '../utils/theme';
 import { ImapClient, ImapConfig } from '../utils/imap';
 import { parseMessage, htmlToText, buildMimeMessage, formatFileSize } from '../utils/mime';
-import { getSendingAccount, getSendingAccountSync } from '../utils/sending-account';
+import { getSendingAccount } from '../utils/sending-account';
 
 async function getImapConfig(): Promise<ImapConfig> {
   const account = await getSendingAccount();
@@ -365,7 +365,9 @@ export async function mailReply(uid?: string): Promise<void> {
   }
 
   const uidNum = parseInt(uid, 10);
-  const account = getSendingAccountSync();
+  // Prompt for sending account before fetching the message so the user isn't
+  // blocked mid-flow if credentials aren't configured yet.
+  const account = await getSendingAccount();
 
   const spinner = ora({ text: 'Fetching original message...', spinner: 'dots12', color: 'cyan' }).start();
 
@@ -422,10 +424,6 @@ export async function mailReply(uid?: string): Promise<void> {
 
     try {
       const { sendEmail } = await import('../utils/api');
-      if (!account) {
-        sendSpinner.fail(chalk.red('No sending account configured. Run mxroute send to set one up.'));
-        return;
-      }
       const result = await sendEmail({
         server: account.server,
         username: account.email,
@@ -459,7 +457,9 @@ export async function mailForward(uid?: string): Promise<void> {
   }
 
   const uidNum = parseInt(uid, 10);
-  const account = getSendingAccountSync();
+  // Prompt for sending account before fetching the message so the user isn't
+  // blocked mid-flow if credentials aren't configured yet.
+  const account = await getSendingAccount();
 
   const spinner = ora({ text: 'Fetching original message...', spinner: 'dots12', color: 'cyan' }).start();
 
@@ -524,10 +524,6 @@ export async function mailForward(uid?: string): Promise<void> {
 
     try {
       const { sendEmail } = await import('../utils/api');
-      if (!account) {
-        sendSpinner.fail(chalk.red('No sending account configured. Run mxroute send to set one up.'));
-        return;
-      }
       const result = await sendEmail({
         server: account.server,
         username: account.email,

@@ -1047,7 +1047,7 @@ function resolveSmtpConfig(profileName?: string) {
       throw new Error(`Profile "${profileName}" not found. Available: ${Object.keys(profiles).join(', ') || 'none'}`);
     }
     if (!profile.server || !profile.username || !profile.password) {
-      throw new Error(`Profile "${profileName}" has incomplete SMTP credentials.`);
+      throw new Error(`Profile "${profileName}" has incomplete sending account credentials.`);
     }
     return { server: profile.server, username: profile.username, password: profile.password };
   }

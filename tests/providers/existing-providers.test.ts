@@ -73,19 +73,19 @@ describe('Namecheap Provider', () => {
   it('should have nsPatterns including namecheaphosting.com', () => {
     expect(nc.nsPatterns).toContain('namecheaphosting.com');
   });
-  it('should have credentialFields for apiKey and apiSecret', () => {
+  it('should have credentialFields for apiKey and username', () => {
     expect(nc.credentialFields.length).toBe(2);
     expect(nc.credentialFields.map((f: any) => f.name)).toContain('apiKey');
-    expect(nc.credentialFields.map((f: any) => f.name)).toContain('apiSecret');
+    expect(nc.credentialFields.map((f: any) => f.name)).toContain('username');
   });
   it('validateCredentials rejects empty', () => {
     expect(nc.validateCredentials({})).not.toBeNull();
   });
   it('validateCredentials accepts valid', () => {
-    expect(nc.validateCredentials({ apiKey: 'key', apiSecret: 'user' })).toBeNull();
+    expect(nc.validateCredentials({ apiKey: 'key', username: 'user' })).toBeNull();
   });
   it('createRecord returns success false with atomic message', async () => {
-    const result = await nc.createRecord({ apiKey: 'k', apiSecret: 'u' }, 'example.com', {
+    const result = await nc.createRecord({ apiKey: 'k', username: 'u' }, 'example.com', {
       type: 'MX',
       name: '@',
       value: 'mail.example.com',

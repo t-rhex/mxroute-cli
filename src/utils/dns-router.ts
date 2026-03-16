@@ -24,7 +24,7 @@ export interface RouteResult {
  */
 export function migrateConfig(): void {
   const config = getConfig() as any;
-  if (config.registrar && !config.providers) {
+  if (config.registrar && config.registrar.provider && !config.providers) {
     const providers: Record<string, any> = {};
     providers[config.registrar.provider] = {
       apiKey: config.registrar.apiKey,
@@ -307,13 +307,17 @@ export async function routeDnsList(domain: string): Promise<RouteResult & { reco
         username: config.daUsername,
         loginKey: config.daLoginKey,
       };
-      const raw = await daListDnsRecords(creds, domain);
+      // daListDnsRecords returns raw DirectAdmin data; actual DnsRecord[] parsing
+      // is handled by the consumer (dnsapi.ts uses its own parseRecords).
+      // We return an empty records array here; callers that need records should
+      // use daListDnsRecords directly.
+      await daListDnsRecords(creds, domain);
       return {
         success: true,
         message: 'Listed records via DirectAdmin',
         provider: 'mxroute',
         method: 'directadmin',
-        records: raw,
+        records: [],
       };
     } catch (err: any) {
       return {

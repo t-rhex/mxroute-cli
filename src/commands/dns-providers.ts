@@ -205,17 +205,8 @@ export async function dnsProvidersSetup(providerId: string): Promise<void> {
     setConfig('providers', providers);
     console.log(theme.success(`\n  ${theme.statusIcon('pass')} Credentials saved for ${provider.name}\n`));
   } else {
-    // Check if this is a detection-only provider (createRecord always returns success:false with a guidance message)
-    const testResult = await provider
-      .createRecord(answers, '__probe__', { type: 'TXT', name: '@', value: 'test' })
-      .catch(() => ({ success: false, message: '' }));
-    const isDetectionOnly =
-      !testResult.success &&
-      testResult.message.length > 0 &&
-      (testResult.message.includes('requires') ||
-        testResult.message.includes('Use:') ||
-        testResult.message.includes('use:') ||
-        testResult.message.includes('web panel'));
+    // Check if this is a detection-only provider using the explicit flag
+    const isDetectionOnly = provider.detectionOnly === true;
     if (isDetectionOnly) {
       spinner.stop();
       // Save credentials anyway for future full support

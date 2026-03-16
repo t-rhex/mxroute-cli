@@ -23,7 +23,6 @@ export async function fixCommand(): Promise<void> {
   console.log(theme.muted('  Scanning for issues and preparing fixes...\n'));
 
   // DNS fixes are routed automatically via dns-router
-  const hasDnsRouter = true;
 
   // Fetch domains
   const domSpinner = ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
@@ -44,7 +43,7 @@ export async function fixCommand(): Promise<void> {
 
     // Check MX
     const mx = await checkMxRecords(domain, config.server);
-    if (mx.status === 'fail' && hasDnsRouter) {
+    if (mx.status === 'fail') {
       const records = generateMxrouteRecords(config.server, domain);
       const mxRecords = records.filter((r) => r.type === 'MX');
       actions.push({
@@ -63,7 +62,7 @@ export async function fixCommand(): Promise<void> {
 
     // Check SPF
     const spf = await checkSpfRecord(domain);
-    if (spf.status === 'fail' && hasDnsRouter) {
+    if (spf.status === 'fail') {
       actions.push({
         domain,
         issue: 'SPF record missing',
@@ -77,28 +76,26 @@ export async function fixCommand(): Promise<void> {
           }),
       });
     } else if (spf.status === 'warn' && spf.actual && spf.actual.includes('~all')) {
-      if (hasDnsRouter) {
-        actions.push({
-          domain,
-          issue: 'SPF using ~all (soft fail)',
-          fix: 'Replace with -all (hard fail)',
-          execute: async () => {
-            // Delete old, create new
-            await routeDnsDelete(domain, { type: 'TXT', name: '@', value: spf.actual });
-            return routeDnsAdd(domain, {
-              type: 'TXT',
-              name: '@',
-              value: spf.actual.replace('~all', '-all'),
-              ttl: 3600,
-            });
-          },
-        });
-      }
+      actions.push({
+        domain,
+        issue: 'SPF using ~all (soft fail)',
+        fix: 'Replace with -all (hard fail)',
+        execute: async () => {
+          // Delete old, create new
+          await routeDnsDelete(domain, { type: 'TXT', name: '@', value: spf.actual });
+          return routeDnsAdd(domain, {
+            type: 'TXT',
+            name: '@',
+            value: spf.actual.replace('~all', '-all'),
+            ttl: 3600,
+          });
+        },
+      });
     }
 
     // Check DKIM
     const dkim = await checkDkimRecord(domain);
-    if (dkim.status === 'fail' && hasDnsRouter) {
+    if (dkim.status === 'fail') {
       // Try to get DKIM from DirectAdmin
       const dkimKey = await getDkimKey(creds, domain);
       if (dkimKey) {
@@ -120,29 +117,27 @@ export async function fixCommand(): Promise<void> {
     // Check DMARC
     const dmarc = await checkDmarcRecord(domain);
     if (dmarc.status === 'fail' || (dmarc.status === 'warn' && dmarc.actual && dmarc.actual.includes('p=none'))) {
-      if (hasDnsRouter) {
-        const isNone = dmarc.actual && dmarc.actual.includes('p=none');
-        actions.push({
-          domain,
-          issue: isNone ? 'DMARC policy is "none" (no protection)' : 'DMARC record missing',
-          fix: isNone ? 'Upgrade to p=quarantine' : 'Create DMARC record with p=quarantine',
-          execute: async () => {
-            if (isNone) {
-              await routeDnsDelete(domain, {
-                type: 'TXT',
-                name: '_dmarc',
-                value: dmarc.actual,
-              });
-            }
-            return routeDnsAdd(domain, {
+      const isNone = dmarc.actual && dmarc.actual.includes('p=none');
+      actions.push({
+        domain,
+        issue: isNone ? 'DMARC policy is "none" (no protection)' : 'DMARC record missing',
+        fix: isNone ? 'Upgrade to p=quarantine' : 'Create DMARC record with p=quarantine',
+        execute: async () => {
+          if (isNone) {
+            await routeDnsDelete(domain, {
               type: 'TXT',
               name: '_dmarc',
-              value: `v=DMARC1; p=quarantine; rua=mailto:postmaster@${domain}`,
-              ttl: 3600,
+              value: dmarc.actual,
             });
-          },
-        });
-      }
+          }
+          return routeDnsAdd(domain, {
+            type: 'TXT',
+            name: '_dmarc',
+            value: `v=DMARC1; p=quarantine; rua=mailto:postmaster@${domain}`,
+            ttl: 3600,
+          });
+        },
+      });
     }
 
     // Check catch-all

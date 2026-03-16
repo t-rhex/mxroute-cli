@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import { DnsProvider, DnsRecord, ProviderCredentials, ProviderResult } from './types';
 
 async function getCloudflareZoneId(apiKey: string, domain: string): Promise<string> {
-  const res = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${domain}`, {
+  const res = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${encodeURIComponent(domain)}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   const data = (await res.json()) as any;
@@ -91,7 +91,7 @@ export const cloudflare: DnsProvider = {
     const zoneId = await getCloudflareZoneId(creds.apiKey!, domain);
     const name = record.name === '@' ? domain : `${record.name}.${domain}`;
     const searchRes = await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${record.type}&name=${name}&content=${encodeURIComponent(record.value)}`,
+      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${encodeURIComponent(record.type)}&name=${encodeURIComponent(name)}&content=${encodeURIComponent(record.value)}`,
       { headers: { Authorization: `Bearer ${creds.apiKey}` } },
     );
     const searchData = (await searchRes.json()) as any;
