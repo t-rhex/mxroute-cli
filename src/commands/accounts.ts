@@ -7,8 +7,53 @@ import { listEmailAccounts, createEmailAccount, deleteEmailAccount, changeEmailP
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 
-export async function accountsList(domain?: string): Promise<void> {
+export async function accountsList(domain?: string, options?: { all?: boolean }): Promise<void> {
   const creds = getCreds();
+
+  if (options?.all) {
+    // List across all domains
+    if (!isJsonMode()) console.log(theme.heading('All Email Accounts'));
+    const spinner = isJsonMode()
+      ? null
+      : ora({ text: 'Fetching accounts...', spinner: 'dots12', color: 'cyan' }).start();
+    try {
+      const { listDomains } = await import('../utils/directadmin');
+      const domains = await listDomains(creds);
+      spinner?.stop();
+
+      const allAccounts: { domain: string; email: string }[] = [];
+      for (const d of domains) {
+        const accounts = await listEmailAccounts(creds, d);
+        allAccounts.push(...accounts.map((a) => ({ domain: d, email: `${a}@${d}` })));
+      }
+
+      if (isJsonMode()) {
+        output('accounts', allAccounts);
+        return;
+      }
+
+      // Render table
+      const table = new Table({
+        head: [chalk.hex('#6C63FF')('#'), chalk.hex('#6C63FF')('Domain'), chalk.hex('#6C63FF')('Email')],
+        style: { head: [], border: ['gray'] },
+        chars: tableChars,
+      });
+      allAccounts.forEach((a, i) => {
+        table.push([chalk.gray(`${i + 1}`), chalk.white(a.domain), chalk.white(a.email)]);
+      });
+      console.log(table.toString());
+      console.log(
+        theme.muted(
+          `\n  ${allAccounts.length} account${allAccounts.length !== 1 ? 's' : ''} across ${domains.length} domain${domains.length !== 1 ? 's' : ''}\n`,
+        ),
+      );
+    } catch (err: any) {
+      spinner?.fail('Failed to fetch accounts');
+      if (!isJsonMode()) console.log(theme.error(`  ${err.message}\n`));
+    }
+    return;
+  }
+
   const targetDomain = await pickDomain(creds, domain);
 
   if (!targetDomain) return;

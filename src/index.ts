@@ -17,7 +17,25 @@ program
   .name('mxroute')
   .description('A powerful CLI for managing MXroute email hosting')
   .version(pkg.version, '-v, --version')
-  .addHelpText('beforeAll', theme.banner());
+  .addHelpText('beforeAll', theme.banner())
+  .addHelpText(
+    'afterAll',
+    `
+  ─── Quick Reference ──────────────────────────────────────
+  Core:        setup, status, config, auth, whoami, open
+  Email:       accounts, forwarders, autoresponder, catchall, filters, lists, aliases
+  Mail:        mail inbox, mail read, mail compose, mail reply, mail search
+  DNS:         dns check, dns setup, dns providers, dns list, dns add
+  Sending:     send, test, webhook, templates
+  Security:    audit, spam, ip, reputation, ssl-check
+  Monitoring:  monitor, doctor, benchmark, cron, rate-limit
+  Data:        export, import, diff, bulk, mail-backup, migrate
+  Business:    onboard, provision, deprovision, welcome-send, quota-policy
+  Platform:    guide, suggest, playbook, dashboard, completions, report
+
+  Run mxroute guide to explore commands with examples.
+`,
+  );
 
 program.option('--json', 'Output as JSON (for scripting)');
 program.hook('preAction', (thisCommand) => {
@@ -110,7 +128,7 @@ configCmd
 // ─── Send ────────────────────────────────────────────────
 program
   .command('send')
-  .description('Send an email via MXroute SMTP API')
+  .description('Send a quick email (single recipient, no attachments — use mail compose for full features)')
   .option('-t, --to <email>', 'Recipient email address')
   .option('-s, --subject <subject>', 'Email subject')
   .option('-b, --body <body>', 'Email body')
@@ -127,7 +145,7 @@ const dnsCmd = program.command('dns').description('DNS record management and ver
 
 dnsCmd
   .command('check [domain]')
-  .description('Run full DNS health check')
+  .description('Verify DNS records (MX, SPF, DKIM, DMARC) for one domain')
   .action(async (domain?: string) => {
     const { dnsCheck } = await import('./commands/dns');
     await dnsCheck(domain);
@@ -187,6 +205,40 @@ dnsCmd
   .action(async (provider: string) => {
     const { dnsProvidersRemove } = await import('./commands/dns-providers');
     await dnsProvidersRemove(provider);
+  });
+
+dnsCmd
+  .command('list [domain]')
+  .alias('ls')
+  .description('List all DNS records from server')
+  .action(async (domain?: string) => {
+    const { dnsapiList } = await import('./commands/dnsapi');
+    await dnsapiList(domain);
+  });
+
+dnsCmd
+  .command('add [domain]')
+  .description('Add a DNS record')
+  .action(async (domain?: string) => {
+    const { dnsapiAdd } = await import('./commands/dnsapi');
+    await dnsapiAdd(domain);
+  });
+
+dnsCmd
+  .command('delete [domain]')
+  .alias('rm')
+  .description('Delete a DNS record')
+  .action(async (domain?: string) => {
+    const { dnsapiDelete } = await import('./commands/dnsapi');
+    await dnsapiDelete(domain);
+  });
+
+dnsCmd
+  .command('dkim [domain]')
+  .description('Show DKIM key for domain')
+  .action(async (domain?: string) => {
+    const { dnsapiDkim } = await import('./commands/dnsapi');
+    await dnsapiDkim(domain);
   });
 
 // ─── Info ────────────────────────────────────────────────
@@ -312,10 +364,11 @@ const accountsCmd = program.command('accounts').description('Manage email accoun
 accountsCmd
   .command('list [domain]')
   .alias('ls')
+  .option('-a, --all', 'List accounts across all domains')
   .description('List email accounts')
-  .action(async (domain?: string) => {
+  .action(async (domain?: string, options?: any) => {
     const { accountsList } = await import('./commands/accounts');
-    await accountsList(domain);
+    await accountsList(domain, options);
   });
 
 accountsCmd
@@ -475,7 +528,10 @@ spamCmd
   });
 
 // ─── DNS Records (via API) ──────────────────────────────
-const dnsapiCmd = program.command('dnsrecords').alias('dnsapi').description('Manage DNS records via DirectAdmin API');
+const dnsapiCmd = program
+  .command('dnsrecords', { hidden: true })
+  .alias('dnsapi')
+  .description('DNS records (use dns list/add/delete instead)');
 
 dnsapiCmd
   .command('list [domain]')
@@ -666,7 +722,7 @@ program
 program
   .command('doctor')
   .alias('healthcheck')
-  .description('Run comprehensive health check across all domains')
+  .description('Full health check — auth, DNS (all domains), quota, connectivity')
   .action(async () => {
     const { doctorCommand } = await import('./commands/doctor');
     await doctorCommand();
@@ -757,7 +813,7 @@ notifyCmd
 // ─── Audit ───────────────────────────────────────────────
 program
   .command('audit')
-  .description('Security audit — DNS, SPF lookups, catch-all, forwarding loops')
+  .description('Security audit with score — DNS, catch-all, forwarding loops')
   .action(async () => {
     const { auditCommand } = await import('./commands/audit');
     await auditCommand();
@@ -798,6 +854,7 @@ program
   .command('webhook')
   .description('Start local HTTP server that relays email via MXroute')
   .option('-p, --port <port>', 'Port to listen on', '3025')
+  .option('-k, --api-key <key>', 'Require API key for authentication')
   .action(async (options) => {
     const { webhookCommand } = await import('./commands/webhook');
     await webhookCommand(options);
@@ -940,7 +997,8 @@ program
 
 // ─── Backup ─────────────────────────────────────────────
 program
-  .command('backup [domain]')
+  .command('mail-backup [domain]')
+  .alias('backup')
   .description('Generate IMAP mailbox backup commands (imapsync)')
   .action(async (domain?: string) => {
     const { backupCommand } = await import('./commands/backup');
@@ -998,7 +1056,7 @@ program
 program
   .command('reputation [domain]')
   .alias('rep')
-  .description('Check sender reputation (SPF, DKIM, DMARC, blacklists)')
+  .description('Sender reputation — SPF, DKIM, DMARC, blacklists for one domain')
   .action(async (domain?: string) => {
     const { reputationCommand } = await import('./commands/reputation');
     await reputationCommand(domain);
@@ -1056,7 +1114,7 @@ program
 // ─── Aliases Sync ───────────────────────────────────────
 aliasesCmd
   .command('sync')
-  .description('Sync domain aliases across profiles/servers')
+  .description('Copy domain pointer aliases from one server profile to another')
   .action(async () => {
     const { aliasesSyncCommand } = await import('./commands/aliases-sync');
     await aliasesSyncCommand();
@@ -1378,6 +1436,14 @@ playbookCmd
   .action(async () => {
     const { playbookList } = await import('./commands/playbook');
     playbookList();
+  });
+
+playbookCmd
+  .command('actions')
+  .description('List available playbook actions')
+  .action(async () => {
+    const { playbookActions } = await import('./commands/playbook');
+    playbookActions();
   });
 
 // ─── Dashboard ──────────────────────────────────────────

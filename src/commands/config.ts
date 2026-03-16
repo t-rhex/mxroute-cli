@@ -29,6 +29,9 @@ export async function configSetup(): Promise<void> {
   ]);
 
   // Step 2: Server hostname (shared by both API and SMTP)
+  console.log(theme.subheading('Server Hostname'));
+  console.log(theme.muted('  Find yours at panel.mxroute.com → DNS section.'));
+  console.log(theme.muted('  It looks like: tuesday, fusion, arrow, etc.\n'));
   const { server } = await inquirer.prompt([
     {
       type: 'input',
@@ -44,6 +47,11 @@ export async function configSetup(): Promise<void> {
   console.log(theme.heading('DirectAdmin API Authentication'));
   console.log(theme.muted('  This is your primary authentication — gives access to all account management.'));
   console.log(theme.muted('  Create a Login Key at Control Panel (panel.mxroute.com) -> Login Keys\n'));
+  console.log(theme.muted('  How to create a Login Key:'));
+  console.log(theme.muted('    1. Go to panel.mxroute.com and log in'));
+  console.log(theme.muted('    2. Click "Login Keys" (under your account)'));
+  console.log(theme.muted('    3. Create a new key — copy the key value'));
+  console.log(theme.muted('    4. Your username is shown at the top of the panel\n'));
 
   const { daUsername, daLoginKey } = await inquirer.prompt([
     {
