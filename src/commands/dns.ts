@@ -133,7 +133,21 @@ export async function dnsRecords(domain?: string): Promise<void> {
 
   console.log('');
   console.log(theme.subheading('DKIM Record (required)'));
-  console.log(theme.record('TXT', 'x._domainkey', `(copy from Control Panel → DNS → ${targetDomain})`));
+  // Try to fetch real DKIM key if DA API is configured
+  let dkimValue = `(copy from Control Panel → DNS → ${targetDomain})`;
+  if (config.daUsername && config.daLoginKey) {
+    try {
+      const { getDkimKey } = await import('../utils/directadmin');
+      const key = await getDkimKey(
+        { server: config.server, username: config.daUsername, loginKey: config.daLoginKey },
+        targetDomain!,
+      );
+      if (key) dkimValue = key.length > 60 ? key.substring(0, 57) + '...' : key;
+    } catch {
+      // Fall back to placeholder
+    }
+  }
+  console.log(theme.record('TXT', 'x._domainkey', dkimValue));
 
   console.log('');
   console.log(theme.subheading('DMARC Record (recommended)'));
