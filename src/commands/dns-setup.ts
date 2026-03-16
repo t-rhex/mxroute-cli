@@ -167,53 +167,99 @@ export async function dnsSetup(domain?: string): Promise<void> {
     );
   }
 
-  // Confirm
-  const { proceed } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'proceed',
-      message: `Create ${records.length} DNS records on ${provider.name}?`,
-      default: true,
-    },
-  ]);
+  // Pre-flight check: compare against existing records
+  console.log(theme.heading('Pre-flight check'));
 
-  if (!proceed) {
-    console.log(theme.muted('\n  Cancelled.\n'));
-    return;
+  let existingRecords: any[] = [];
+  try {
+    existingRecords = await provider.listRecords(creds, domain!);
+  } catch {
+    // Can't list existing records — proceed with creation
+    console.log(theme.muted('  Could not check existing records — will attempt to create all.\n'));
   }
 
-  // Step 6: Create records
-  console.log(theme.heading('Creating DNS records'));
-  let successCount = 0;
-  let failCount = 0;
+  const toCreate: typeof records = [];
+  const alreadyExists: typeof records = [];
 
   for (const record of records) {
-    const spinner = ora({
-      text: `${record.type} ${record.name}...`,
-      spinner: 'dots12',
-      color: 'cyan',
-    }).start();
+    const exists = existingRecords.some((existing) => {
+      const nameMatch = existing.name === record.name || (existing.name === '@' && record.name === '@');
+      const typeMatch = existing.type === record.type;
+      const valueMatch = existing.value?.includes(record.value) || record.value?.includes(existing.value);
+      return nameMatch && typeMatch && valueMatch;
+    });
 
-    try {
-      const result = await provider.createRecord(creds, domain!, record);
-      if (result.success) {
-        spinner.succeed(`${record.type} ${record.name}`);
-        successCount++;
-      } else {
-        spinner.fail(`${record.type} ${record.name}: ${result.message}`);
-        failCount++;
-      }
-    } catch (err: any) {
-      spinner.fail(`${record.type} ${record.name}: ${err.message}`);
-      failCount++;
+    if (exists) {
+      alreadyExists.push(record);
+    } else {
+      toCreate.push(record);
     }
   }
 
-  console.log('');
-  if (failCount === 0) {
-    console.log(theme.success(`  ${theme.statusIcon('pass')} All ${successCount} records created successfully!`));
+  if (alreadyExists.length > 0) {
+    console.log(theme.subheading('Already configured'));
+    for (const r of alreadyExists) {
+      console.log(`  ${theme.statusIcon('pass')} ${r.type} ${r.name}`);
+    }
+  }
+
+  if (toCreate.length === 0) {
+    console.log(theme.success(`\n  ${theme.statusIcon('pass')} All records already exist! Nothing to create.\n`));
   } else {
-    console.log(theme.warning(`  ${successCount} created, ${failCount} failed`));
+    console.log(theme.subheading('Will create'));
+    for (const r of toCreate) {
+      console.log(`  ${theme.statusIcon('info')} ${r.type} ${r.name}`);
+    }
+    console.log('');
+
+    // Confirm
+    const { proceed } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'proceed',
+        message: `Create ${toCreate.length} DNS records on ${provider.name}?`,
+        default: true,
+      },
+    ]);
+
+    if (!proceed) {
+      console.log(theme.muted('\n  Cancelled.\n'));
+      return;
+    }
+
+    // Step 6: Create records
+    console.log(theme.heading('Creating DNS records'));
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const record of toCreate) {
+      const spinner = ora({
+        text: `${record.type} ${record.name}...`,
+        spinner: 'dots12',
+        color: 'cyan',
+      }).start();
+
+      try {
+        const result = await provider.createRecord(creds, domain!, record);
+        if (result.success) {
+          spinner.succeed(`${record.type} ${record.name}`);
+          successCount++;
+        } else {
+          spinner.fail(`${record.type} ${record.name}: ${result.message}`);
+          failCount++;
+        }
+      } catch (err: any) {
+        spinner.fail(`${record.type} ${record.name}: ${err.message}`);
+        failCount++;
+      }
+    }
+
+    console.log('');
+    if (failCount === 0) {
+      console.log(theme.success(`  ${theme.statusIcon('pass')} All ${successCount} records created successfully!`));
+    } else {
+      console.log(theme.warning(`  ${successCount} created, ${failCount} failed`));
+    }
   }
 
   // Step 7: Verify with DNS check

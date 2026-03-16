@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds, validateDomain } from '../utils/shared';
-import { listDomains, createEmailAccount, getDkimKey } from '../utils/directadmin';
+import { listDomains, createEmailAccount, listEmailAccounts, getDkimKey } from '../utils/directadmin';
 import { getProvider, generateMxrouteRecords, RegistrarConfig } from '../utils/registrars';
 import { runFullDnsCheck } from '../utils/dns';
 
@@ -130,8 +130,21 @@ export async function onboardCommand(domain?: string): Promise<void> {
   allAccounts.push(...customAccounts);
 
   if (allAccounts.length > 0 && alreadyExists) {
+    // Check which accounts already exist before creating
+    let existingEmailAccounts: string[] = [];
+    try {
+      existingEmailAccounts = await listEmailAccounts(creds, domain!);
+    } catch {
+      // Can't list existing accounts — will attempt to create all
+    }
+
     const createdAccounts: { email: string; password: string }[] = [];
     for (const account of allAccounts) {
+      if (existingEmailAccounts.includes(account)) {
+        console.log(`  ${theme.statusIcon('pass')} ${account}@${domain} already exists — skipping`);
+        continue;
+      }
+
       const spinner = ora({ text: `Creating ${account}@${domain}...`, spinner: 'dots12', color: 'cyan' }).start();
       try {
         // Generate a random password
