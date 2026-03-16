@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
-import { listDomains, getCatchAll, setCatchAll, getDkimKey } from '../utils/directadmin';
+import { listDomains, listEmailAccounts, getCatchAll, setCatchAll, getDkimKey } from '../utils/directadmin';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
 import { routeDnsAdd, routeDnsDelete } from '../utils/dns-router';
 import { generateMxrouteRecords } from '../providers/mxroute-records';
@@ -12,6 +12,9 @@ interface FixAction {
   domain: string;
   issue: string;
   fix: string;
+  existing?: string;
+  proposed?: string;
+  destructive?: boolean;
   execute: () => Promise<{ success: boolean; message: string }>;
 }
 
@@ -80,6 +83,9 @@ export async function fixCommand(): Promise<void> {
         domain,
         issue: 'SPF using ~all (soft fail)',
         fix: 'Replace with -all (hard fail)',
+        existing: spf.actual,
+        proposed: spf.actual.replace('~all', '-all'),
+        destructive: true,
         execute: async () => {
           // Delete old, create new
           await routeDnsDelete(domain, { type: 'TXT', name: '@', value: spf.actual });
@@ -118,10 +124,31 @@ export async function fixCommand(): Promise<void> {
     const dmarc = await checkDmarcRecord(domain);
     if (dmarc.status === 'fail' || (dmarc.status === 'warn' && dmarc.actual && dmarc.actual.includes('p=none'))) {
       const isNone = dmarc.actual && dmarc.actual.includes('p=none');
+
+      // Determine the rua address — prefer an existing account
+      let ruaAddress = `postmaster@${domain}`;
+      try {
+        const accounts = await listEmailAccounts(creds, domain);
+        if (accounts.includes('postmaster')) {
+          ruaAddress = `postmaster@${domain}`;
+        } else if (accounts.length > 0) {
+          ruaAddress = `${accounts[0]}@${domain}`;
+        }
+      } catch {
+        // Fall back to postmaster
+      }
+
+      const newDmarcValue = `v=DMARC1; p=quarantine; rua=mailto:${ruaAddress}`;
+
       actions.push({
         domain,
         issue: isNone ? 'DMARC policy is "none" (no protection)' : 'DMARC record missing',
-        fix: isNone ? 'Upgrade to p=quarantine' : 'Create DMARC record with p=quarantine',
+        fix: isNone
+          ? `Replace with p=quarantine (rua=${ruaAddress})`
+          : `Create DMARC record with p=quarantine (rua=${ruaAddress})`,
+        existing: isNone ? dmarc.actual : undefined,
+        proposed: newDmarcValue,
+        destructive: !!isNone,
         execute: async () => {
           if (isNone) {
             await routeDnsDelete(domain, {
@@ -133,7 +160,7 @@ export async function fixCommand(): Promise<void> {
           return routeDnsAdd(domain, {
             type: 'TXT',
             name: '_dmarc',
-            value: `v=DMARC1; p=quarantine; rua=mailto:postmaster@${domain}`,
+            value: newDmarcValue,
             ttl: 3600,
           });
         },
@@ -169,22 +196,53 @@ export async function fixCommand(): Promise<void> {
 
   console.log(theme.heading(`Found ${actions.length} fixable issue${actions.length !== 1 ? 's' : ''}`));
   for (let i = 0; i < actions.length; i++) {
-    console.log(`  ${theme.warning(`${i + 1}.`)} ${theme.bold(actions[i].domain)} — ${actions[i].issue}`);
-    console.log(theme.muted(`     Fix: ${actions[i].fix}`));
+    const action = actions[i];
+    console.log(`  ${theme.warning(`${i + 1}.`)} ${theme.bold(action.domain)} — ${action.issue}`);
+    console.log(theme.muted(`     Fix: ${action.fix}`));
+    if (action.existing && action.proposed) {
+      console.log(theme.error(`     Current: ${action.existing}`));
+      console.log(theme.success(`     New:     ${action.proposed}`));
+    }
   }
   console.log('');
 
-  const { proceed } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'proceed',
-      message: `Apply all ${actions.length} fixes?`,
-      default: true,
-    },
-  ]);
+  // For destructive actions, ask per action; for safe ones, batch confirm
+  const destructiveActions = actions.filter((a) => a.destructive);
+  const safeActions = actions.filter((a) => !a.destructive);
 
-  if (!proceed) {
-    console.log(theme.muted('\n  Cancelled.\n'));
+  // Confirm safe actions in batch
+  if (safeActions.length > 0) {
+    const { proceed } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'proceed',
+        message: `Apply ${safeActions.length} safe fix${safeActions.length !== 1 ? 'es' : ''} (create missing records)?`,
+        default: true,
+      },
+    ]);
+    if (!proceed) {
+      // Remove safe actions
+      safeActions.length = 0;
+    }
+  }
+
+  // Confirm destructive actions individually
+  const approvedDestructive: FixAction[] = [];
+  for (const action of destructiveActions) {
+    const { confirm } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'confirm',
+        message: `${action.domain}: Replace existing ${action.issue.includes('DMARC') ? 'DMARC' : action.issue.includes('SPF') ? 'SPF' : 'record'}?`,
+        default: true,
+      },
+    ]);
+    if (confirm) approvedDestructive.push(action);
+  }
+
+  const toExecute = [...safeActions, ...approvedDestructive];
+  if (toExecute.length === 0) {
+    console.log(theme.muted('\n  No fixes to apply.\n'));
     return;
   }
 
@@ -193,7 +251,7 @@ export async function fixCommand(): Promise<void> {
   let fixed = 0;
   let failed = 0;
 
-  for (const action of actions) {
+  for (const action of toExecute) {
     const spinner = ora({ text: `${action.domain}: ${action.fix}...`, spinner: 'dots12', color: 'cyan' }).start();
     try {
       const result = await action.execute();
