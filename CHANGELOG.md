@@ -1,3 +1,8 @@
+## [1.2.1](https://github.com/t-rhex/mxroute-cli/compare/v1.2.0...v1.2.1) (2026-03-16)
+
+### Bug Fixes
+
+* dns records shows real DKIM key when DA API is configured ([f0a8fb4](https://github.com/t-rhex/mxroute-cli/commit/f0a8fb4015b53ed14b3582b08d28f4912cc81e5e))
 ## [1.2.0](https://github.com/t-rhex/mxroute-cli/compare/v1.1.3...v1.2.0) (2026-03-16)
 
 ### Features
