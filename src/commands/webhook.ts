@@ -5,7 +5,7 @@ import { getSendingAccountSync } from '../utils/sending-account';
 
 const MAX_BODY_SIZE = 1024 * 1024; // 1MB max request body
 
-export async function webhookCommand(options: { port?: string }): Promise<void> {
+export async function webhookCommand(options: { port?: string; apiKey?: string }): Promise<void> {
   const account = getSendingAccountSync();
 
   if (!account) {
@@ -25,6 +25,11 @@ export async function webhookCommand(options: { port?: string }): Promise<void> 
   console.log(theme.keyValue('Content-Type', 'application/json'));
   console.log(theme.keyValue('From', account.email));
   console.log(theme.keyValue('Rate Limit', '400/hour'));
+  if (options.apiKey) {
+    console.log(theme.keyValue('Auth', 'Required (Bearer token or X-API-Key header)'));
+  } else {
+    console.log(theme.keyValue('Auth', theme.warning('None — anyone can send email. Use --api-key for security.')));
+  }
   console.log('');
   console.log(theme.subheading('Request body:'));
   console.log(theme.muted('    { "to": "user@example.com", "subject": "...", "body": "..." }'));
@@ -45,6 +50,20 @@ export async function webhookCommand(options: { port?: string }): Promise<void> 
       res.writeHead(204);
       res.end();
       return;
+    }
+
+    if (options.apiKey) {
+      const authHeader = req.headers['authorization'] || req.headers['x-api-key'] || '';
+      const token = typeof authHeader === 'string' ? authHeader : '';
+      if (token !== `Bearer ${options.apiKey}` && token !== options.apiKey) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            error: 'Unauthorized. Provide API key via Authorization: Bearer <key> or X-API-Key header.',
+          }),
+        );
+        return;
+      }
     }
 
     if (req.method === 'GET' && req.url === '/health') {
