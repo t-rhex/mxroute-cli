@@ -5,7 +5,8 @@ import { theme } from '../utils/theme';
 import { getConfig, setConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
 import { getDkimKey } from '../utils/directadmin';
-import { getProviderList, getProvider, generateMxrouteRecords, RegistrarConfig } from '../utils/registrars';
+import { listProviders, getProvider, ProviderCredentials } from '../providers';
+import { generateMxrouteRecords } from '../providers/mxroute-records';
 
 export async function dnsSetup(domain?: string): Promise<void> {
   const config = getConfig();
@@ -41,7 +42,7 @@ export async function dnsSetup(domain?: string): Promise<void> {
   console.log(theme.muted('  This will automatically create all required MXroute DNS records.\n'));
 
   // Step 1: Choose registrar
-  const providers = getProviderList();
+  const providers = listProviders();
   const { providerId } = await inquirer.prompt([
     {
       type: 'list',
@@ -70,45 +71,19 @@ export async function dnsSetup(domain?: string): Promise<void> {
   // Step 2: Get API credentials
   console.log(theme.heading(`${provider.name} Authentication`));
 
-  const savedRegistrar = (config as any).registrar || {};
-  const prompts: any[] = [
-    {
-      type: 'password',
-      name: 'apiKey',
-      message: theme.secondary(`${provider.name} API Key/Token:`),
-      mask: '\u2022',
-      default: savedRegistrar.provider === providerId ? savedRegistrar.apiKey : undefined,
-      validate: (input: string) => (input.trim() ? true : 'Required'),
-    },
-  ];
+  const savedProviders = (config as any).providers || {};
+  const savedCreds: Record<string, string> = savedProviders[providerId] || {};
 
-  // Porkbun needs secret key, Namecheap needs username
-  if (providerId === 'porkbun') {
-    prompts.push({
-      type: 'password',
-      name: 'apiSecret',
-      message: theme.secondary('Porkbun Secret API Key:'),
-      mask: '\u2022',
-      default: savedRegistrar.provider === providerId ? savedRegistrar.apiSecret : undefined,
-      validate: (input: string) => (input.trim() ? true : 'Required'),
-    });
-  } else if (providerId === 'namecheap') {
-    prompts.push({
-      type: 'input',
-      name: 'apiSecret',
-      message: theme.secondary('Namecheap Username:'),
-      default: savedRegistrar.provider === providerId ? savedRegistrar.apiSecret : undefined,
-      validate: (input: string) => (input.trim() ? true : 'Required'),
-    });
-  }
+  const prompts: any[] = provider.credentialFields.map((field) => ({
+    type: field.secret ? 'password' : 'input',
+    name: field.name,
+    message: theme.secondary(`${provider.name} ${field.label}:`),
+    mask: field.secret ? '\u2022' : undefined,
+    default: savedCreds[field.name] || undefined,
+    validate: (input: string) => (input.trim() ? true : 'Required'),
+  }));
 
-  const creds = await inquirer.prompt(prompts);
-
-  const registrarConfig: RegistrarConfig = {
-    provider: providerId,
-    apiKey: creds.apiKey,
-    apiSecret: creds.apiSecret,
-  };
+  const creds: ProviderCredentials = await inquirer.prompt(prompts);
 
   // Verify auth
   const authSpinner = ora({
@@ -116,25 +91,26 @@ export async function dnsSetup(domain?: string): Promise<void> {
     spinner: 'dots12',
     color: 'cyan',
   }).start();
-  const authOk = await provider.authenticate(registrarConfig);
+  const authOk = await provider.authenticate(creds);
   if (!authOk) {
     authSpinner.fail(chalk.red(`${provider.name} authentication failed`));
     return;
   }
   authSpinner.succeed(chalk.green(`${provider.name} authenticated`));
 
-  // Save registrar config for future use
-  const { saveRegistrar } = await inquirer.prompt([
+  // Save provider config for future use
+  const { saveProvider } = await inquirer.prompt([
     {
       type: 'confirm',
-      name: 'saveRegistrar',
+      name: 'saveProvider',
       message: `Save ${provider.name} API credentials for future use?`,
       default: false,
     },
   ]);
 
-  if (saveRegistrar) {
-    setConfig('registrar', { provider: providerId, apiKey: creds.apiKey, apiSecret: creds.apiSecret });
+  if (saveProvider) {
+    const updatedProviders = { ...savedProviders, [providerId]: creds };
+    setConfig('providers', updatedProviders);
     console.log(theme.muted(`  Saved to ${require('../utils/config').getConfigPath()}\n`));
   }
 
@@ -219,7 +195,7 @@ export async function dnsSetup(domain?: string): Promise<void> {
     }).start();
 
     try {
-      const result = await provider.createRecord(registrarConfig, domain!, record);
+      const result = await provider.createRecord(creds, domain!, record);
       if (result.success) {
         spinner.succeed(`${record.type} ${record.name}`);
         successCount++;

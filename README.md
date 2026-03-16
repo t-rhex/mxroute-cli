@@ -814,6 +814,8 @@ Add to your MCP client config:
 
 **Account Management:** domains, email accounts, forwarders, autoresponders, catch-all, spam config, DNS records, DKIM keys, email filters, mailing lists, domain aliases, quota management, DNS health checks.
 
+**DNS Provider Routing:** `list_dns_providers` -- list all supported DNS providers with credential status, showing which providers are configured and ready for automated record creation.
+
 **Mail Client (IMAP/SMTP):** `list_messages`, `read_email`, `search_emails`, `send_email` (with CC/BCC), `reply_email`, `forward_email`, `delete_email`, `move_email`, `mark_email` (read/unread/flagged/unflagged), `get_unread_count`, `list_mail_folders`, `create_mail_folder`, `delete_mail_folder`, `download_attachment`.
 
 **Bulk Operations:** `bulk_mark`, `bulk_delete`, `bulk_move` -- operate on multiple messages at once.
@@ -849,14 +851,41 @@ AI agents can operate on multiple email accounts by passing the `profile` parame
 
 The `dns setup` command can automatically create all required MXroute DNS records at your registrar via API.
 
-### Supported Registrars
+### Supported Providers
 
-| Registrar | API Support | Credentials Needed |
+| Provider | API Support | Credentials Needed |
 |---|---|---|
 | **Cloudflare** | Full | API Token |
 | **Porkbun** | Full | API Key + Secret Key |
 | **DigitalOcean** | Full | API Token |
-| **Namecheap** | Limited | API Key + Username |
+| **GoDaddy** | Full | API Key + API Secret |
+| **Hetzner DNS** | Full | API Token |
+| **Vercel DNS** | Full | Bearer Token |
+| **Namecheap** | Limited* | API Key + Username |
+| **AWS Route53** | Detection only† | Access Key ID + Secret + Region |
+| **Google Cloud DNS** | Detection only† | Service Account JSON + Project ID |
+
+\* Namecheap's API requires IP whitelisting and only supports domains registered through Namecheap.
+
+† Detection only: the provider is auto-detected from your nameservers for routing purposes, but automated record creation is not supported. Use the AWS CLI or `gcloud` to apply the generated records.
+
+### Provider Routing
+
+The CLI can auto-detect your DNS provider by querying your domain's nameservers, then automatically route operations to the right provider:
+
+```bash
+# Auto-detect and route DNS setup
+mxroute dns setup example.com
+
+# List all configured providers and their credential status
+mxroute dns providers
+
+# Pre-configure credentials for a specific provider
+mxroute dns providers-setup cloudflare
+mxroute dns providers-setup porkbun
+```
+
+Provider credentials are stored per-provider under `providers` in your config file and reused automatically on subsequent runs.
 
 ### Usage
 
@@ -865,7 +894,7 @@ mxroute dns setup example.com
 ```
 
 The wizard will:
-1. Ask which registrar manages your DNS
+1. Ask which provider manages your DNS
 2. Prompt for API credentials (saved for reuse)
 3. Retrieve your DKIM key from the server
 4. Create MX, SPF, DKIM, and DMARC records automatically
