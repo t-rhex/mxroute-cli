@@ -117,7 +117,7 @@ export async function routeDnsAdd(domain: string, record: DnsRecord): Promise<Ro
     // Provider detected but no creds configured
     return {
       success: false,
-      message: `DNS is managed by ${provider.name} but no credentials configured. Run: mxroute config set providers.${provider.id}.apiKey <key>`,
+      message: `DNS is managed by ${provider.name} but no credentials configured. Run: mxroute dns providers-setup ${provider.id}`,
       provider: provider.id,
       method: 'none',
     };
@@ -206,7 +206,7 @@ export async function routeDnsDelete(domain: string, record: DnsRecord): Promise
     }
     return {
       success: false,
-      message: `DNS is managed by ${provider.name} but no credentials configured. Run: mxroute config set providers.${provider.id}.apiKey <key>`,
+      message: `DNS is managed by ${provider.name} but no credentials configured. Run: mxroute dns providers-setup ${provider.id}`,
       provider: provider.id,
       method: 'none',
     };
