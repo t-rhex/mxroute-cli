@@ -10,7 +10,7 @@ function authHeader(creds: ProviderCredentials): string {
 export const godaddy: DnsProvider = {
   id: 'godaddy',
   name: 'GoDaddy',
-  nsPatterns: ['domaincontrol.com'],
+  nsPatterns: ['domaincontrol.com', 'godaddy.com'],
   credentialFields: [
     { name: 'apiKey', label: 'API Key', secret: true },
     { name: 'apiSecret', label: 'API Secret', secret: true },

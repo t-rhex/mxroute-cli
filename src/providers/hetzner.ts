@@ -22,7 +22,7 @@ async function getZoneId(creds: ProviderCredentials, domain: string): Promise<st
 export const hetzner: DnsProvider = {
   id: 'hetzner',
   name: 'Hetzner DNS',
-  nsPatterns: ['hetzner.com', 'hetzner.de'],
+  nsPatterns: ['hetzner.com', 'hetzner.de', 'second-ns.com', 'second-ns.de'],
   credentialFields: [{ name: 'apiKey', label: 'API Token', secret: true }],
 
   validateCredentials(creds: ProviderCredentials): string | null {
