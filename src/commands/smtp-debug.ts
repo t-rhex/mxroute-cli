@@ -3,7 +3,7 @@ import ora from 'ora';
 import * as tls from 'tls';
 import * as net from 'net';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
+import { getSendingAccount } from '../utils/sending-account';
 
 function smtpSession(host: string, port: number, username: string, password: string): Promise<string[]> {
   return new Promise((resolve, _reject) => {
@@ -107,30 +107,21 @@ function smtpSession(host: string, port: number, username: string, password: str
 }
 
 export async function smtpDebugCommand(): Promise<void> {
-  const config = getConfig();
+  const account = await getSendingAccount();
 
-  if (!config.server || !config.username || !config.password) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} SMTP not configured. Run ${theme.bold('mxroute config smtp')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
-
-  const host = `${config.server}.mxrouting.net`;
+  const host = account.server;
 
   console.log(theme.heading('SMTP Debug Session'));
   console.log(theme.keyValue('Server', host));
   console.log(theme.keyValue('Port', '465 (SSL)'));
-  console.log(theme.keyValue('Username', config.username));
+  console.log(theme.keyValue('Username', account.email));
   console.log('');
 
   const spinner = ora({ text: 'Running SMTP session...', spinner: 'dots12', color: 'cyan' }).start();
   const startTime = Date.now();
 
   try {
-    const log = await smtpSession(host, 465, config.username, config.password);
+    const log = await smtpSession(host, 465, account.email, account.password);
     const duration = Date.now() - startTime;
 
     spinner.stop();

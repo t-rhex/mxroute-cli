@@ -2,10 +2,10 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
 import { sendEmail } from '../utils/api';
 import { getCreds, pickDomain } from '../utils/shared';
 import { listEmailAccounts } from '../utils/directadmin';
+import { getSendingAccount, getSendingAccountSync } from '../utils/sending-account';
 
 interface WelcomeResult {
   email: string;
@@ -84,15 +84,8 @@ export async function welcomeSend(domain?: string): Promise<void> {
       },
     ]);
 
-    const config = getConfig();
-    if (!config.server || !config.username || !config.password) {
-      console.log(
-        theme.error(`  ${theme.statusIcon('fail')} Not configured. Run ${theme.bold('mxroute config smtp')} first.\n`),
-      );
-      process.exit(1);
-    }
-
-    const from = config.username;
+    const account = await getSendingAccount();
+    const from = account.email;
     let sent = 0;
     let failed = 0;
 
@@ -107,9 +100,9 @@ export async function welcomeSend(domain?: string): Promise<void> {
 
       try {
         const result = await sendEmail({
-          server: `${config.server}.mxrouting.net`,
-          username: config.username,
-          password: config.password,
+          server: account.server,
+          username: account.email,
+          password: account.password,
           from,
           to: email,
           subject: `Welcome to ${companyName || 'Your New Email Account'}`,
@@ -143,21 +136,21 @@ export async function welcomeSendBulk(
   accounts: { email: string; password?: string }[],
   companyName?: string,
 ): Promise<WelcomeResult[]> {
-  const config = getConfig();
-  if (!config.server || !config.username || !config.password) {
-    throw new Error('SMTP not configured. Run "mxroute config smtp" first.');
+  const sendingAccount = getSendingAccountSync();
+  if (!sendingAccount) {
+    throw new Error('No sending account configured. Run "mxroute send" to set one up.');
   }
 
-  const from = config.username;
+  const from = sendingAccount.email;
   const results: WelcomeResult[] = [];
 
   for (const account of accounts) {
     const domain = account.email.split('@')[1] || '';
     try {
       const result = await sendEmail({
-        server: `${config.server}.mxrouting.net`,
-        username: config.username,
-        password: config.password,
+        server: sendingAccount.server,
+        username: sendingAccount.email,
+        password: sendingAccount.password,
         from,
         to: account.email,
         subject: `Welcome to ${companyName || 'Your New Email Account'}`,

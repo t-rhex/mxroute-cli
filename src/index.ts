@@ -1201,37 +1201,33 @@ program
   .command('test')
   .description('Send a test email to yourself')
   .action(async () => {
-    const { getConfig } = await import('./utils/config');
+    const { getSendingAccount } = await import('./utils/sending-account');
     const { sendEmail } = await import('./utils/api');
     const ora = (await import('ora')).default;
     const chalk = (await import('chalk')).default;
 
-    const config = getConfig();
-    if (!config.server || !config.username || !config.password) {
-      console.log(theme.error(`\n  Run ${theme.bold('mxroute send to set up')} first.\n`));
-      process.exit(1);
-    }
+    const account = await getSendingAccount();
 
     const spinner = ora({ text: 'Sending test email to yourself...', spinner: 'dots12', color: 'cyan' }).start();
     try {
       const result = await sendEmail({
-        server: `${config.server}.mxrouting.net`,
-        username: config.username,
-        password: config.password,
-        from: config.username,
-        to: config.username,
+        server: account.server,
+        username: account.email,
+        password: account.password,
+        from: account.email,
+        to: account.email,
         subject: `MXroute CLI Test — ${new Date().toLocaleString()}`,
         body: `<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
           <h2 style="color: #6C63FF;">MXroute CLI</h2>
           <p>This test email was sent from the MXroute CLI at <strong>${new Date().toLocaleString()}</strong>.</p>
           <p style="color: #00E676;">✓ Your configuration is working correctly.</p>
           <hr style="border: none; border-top: 1px solid #eee;">
-          <p style="color: #999; font-size: 12px;">Server: ${config.server}.mxrouting.net</p>
+          <p style="color: #999; font-size: 12px;">Server: ${account.server}</p>
         </div>`,
       });
 
       if (result.success) {
-        spinner.succeed(chalk.green(`Test email sent to ${config.username}`));
+        spinner.succeed(chalk.green(`Test email sent to ${account.email}`));
       } else {
         spinner.fail(chalk.red(result.message));
       }

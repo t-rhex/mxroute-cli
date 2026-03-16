@@ -3,10 +3,10 @@ import inquirer from 'inquirer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { theme } from '../utils/theme';
-import { getConfig } from '../utils/config';
 import { sendEmail } from '../utils/api';
 import { validateEmail } from '../utils/shared';
 import ora from 'ora';
+import { getSendingAccount } from '../utils/sending-account';
 
 const TEMPLATES_DIR = path.join(require('os').homedir(), '.config', 'mxroute-cli', 'templates');
 
@@ -161,16 +161,7 @@ export async function templatesSave(): Promise<void> {
 }
 
 export async function templatesSend(templateName?: string): Promise<void> {
-  const config = getConfig();
-
-  if (!config.server || !config.username || !config.password) {
-    console.log(
-      theme.error(
-        `\n  ${theme.statusIcon('fail')} SMTP not configured. Run ${theme.bold('mxroute config smtp')} first.\n`,
-      ),
-    );
-    process.exit(1);
-  }
+  const account = await getSendingAccount();
 
   // Pick template
   if (!templateName) {
@@ -255,10 +246,10 @@ export async function templatesSend(templateName?: string): Promise<void> {
 
   try {
     const result = await sendEmail({
-      server: `${config.server}.mxrouting.net`,
-      username: config.username,
-      password: config.password,
-      from: config.username,
+      server: account.server,
+      username: account.email,
+      password: account.password,
+      from: account.email,
       to,
       subject: finalSubject,
       body: template.isHtml ? finalBody : `<pre style="font-family: system-ui, sans-serif;">${finalBody}</pre>`,

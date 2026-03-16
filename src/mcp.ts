@@ -10,6 +10,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 import { getConfig, getProfiles } from './utils/config';
+import { getSendingAccountSync } from './utils/sending-account';
 import { sendEmail } from './utils/api';
 import { ImapClient } from './utils/imap';
 import { parseMessage, htmlToText, formatFileSize } from './utils/mime';
@@ -1039,8 +1040,6 @@ async function smtpSend(
 // ─── Mail / IMAP Tools ──────────────────────────────────
 
 function resolveSmtpConfig(profileName?: string) {
-  const config = getConfig();
-
   if (profileName) {
     const profiles = getProfiles();
     const profile = profiles[profileName];
@@ -1053,10 +1052,11 @@ function resolveSmtpConfig(profileName?: string) {
     return { server: profile.server, username: profile.username, password: profile.password };
   }
 
-  if (!config.server || !config.username || !config.password) {
-    throw new Error('SMTP/IMAP not configured. Run "mxroute config smtp" first.');
+  const account = getSendingAccountSync();
+  if (!account) {
+    throw new Error('No sending account configured. Run "mxroute send" to set one up.');
   }
-  return { server: config.server, username: config.username, password: config.password };
+  return { server: account.server.replace('.mxrouting.net', ''), username: account.email, password: account.password };
 }
 
 function getImapConfig(profileName?: string) {
