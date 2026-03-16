@@ -1,3 +1,8 @@
+## [1.1.2](https://github.com/t-rhex/mxroute-cli/compare/v1.1.1...v1.1.2) (2026-03-16)
+
+### Bug Fixes
+
+* pin React 17 to match ink v3 peer dependency (removes npm warnings) ([baffab9](https://github.com/t-rhex/mxroute-cli/commit/baffab9b9338dea4cf2c85ff8f666ba224d6b6a0))
 ## [1.1.1](https://github.com/t-rhex/mxroute-cli/compare/v1.1.0...v1.1.1) (2026-03-16)
 
 ### Bug Fixes
