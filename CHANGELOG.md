@@ -1,3 +1,8 @@
+## [1.2.3](https://github.com/t-rhex/mxroute-cli/compare/v1.2.2...v1.2.3) (2026-03-16)
+
+### Features
+
+* per-domain credential overrides for DNS providers (providers.cloudflare:domain.com) ([4d4ea27](https://github.com/t-rhex/mxroute-cli/commit/4d4ea272f87e97c4b7c62a8178014d16faf4fa60))
 ## [1.2.2](https://github.com/t-rhex/mxroute-cli/compare/v1.2.1...v1.2.2) (2026-03-16)
 
 ### Features
