@@ -1,3 +1,8 @@
+## [1.1.3](https://github.com/t-rhex/mxroute-cli/compare/v1.1.2...v1.1.3) (2026-03-16)
+
+### Bug Fixes
+
+* detect DNS authority before adding/deleting records ([92fe8f7](https://github.com/t-rhex/mxroute-cli/commit/92fe8f7eb81b72ff4334f4a9b88a6df5ab9101f2))
 ## [1.1.2](https://github.com/t-rhex/mxroute-cli/compare/v1.1.1...v1.1.2) (2026-03-16)
 
 ### Bug Fixes
