@@ -4,6 +4,11 @@ import { cloudflare } from './cloudflare';
 import { porkbun } from './porkbun';
 import { digitalocean } from './digitalocean';
 import { namecheap } from './namecheap';
+import { godaddy } from './godaddy';
+import { hetzner } from './hetzner';
+import { vercel } from './vercel';
+import { route53 } from './route53';
+import { google } from './google';
 
 const registry = new Map<string, DnsProvider>();
 
@@ -34,6 +39,11 @@ registerProvider(cloudflare);
 registerProvider(porkbun);
 registerProvider(digitalocean);
 registerProvider(namecheap);
+registerProvider(godaddy);
+registerProvider(hetzner);
+registerProvider(vercel);
+registerProvider(route53);
+registerProvider(google);
 
 // Re-export types
 export { DnsProvider, DnsRecord, ProviderCredentials, ProviderResult, CredentialField } from './types';
