@@ -35,7 +35,7 @@ describe('CLI Integration', () => {
       'autoresponder',
       'catchall',
       'spam',
-      'dnsrecords',
+      'doctor',
       'filters',
       'lists',
       'aliases',

@@ -202,4 +202,11 @@ export async function doctorCommand(): Promise<void> {
       ),
     );
   }
+
+  console.log(theme.subheading('Specialized checks'));
+  console.log(theme.muted('    mxroute dns check <domain>    DNS records for one domain'));
+  console.log(theme.muted('    mxroute audit                 Security score'));
+  console.log(theme.muted('    mxroute reputation <domain>   Deliverability check'));
+  console.log(theme.muted('    mxroute ip                    IP blacklist check'));
+  console.log('');
 }

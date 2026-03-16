@@ -65,7 +65,8 @@ export async function passwordAuditCommand(): Promise<void> {
   const creds = getCreds();
 
   console.log(theme.heading('Password Audit'));
-  console.log(theme.muted('  This checks password policies across all accounts.\n'));
+  console.log(theme.muted('  Tests email accounts for common weak passwords by attempting IMAP login.'));
+  console.log(theme.muted('  Only checks accounts on your MXroute server. Does not store passwords.\n'));
   console.log(
     theme.warning(`  ${theme.statusIcon('warn')} Note: The CLI cannot retrieve existing passwords from the server.`),
   );
