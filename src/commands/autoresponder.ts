@@ -13,6 +13,7 @@ import {
 } from '../utils/directadmin';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
+import { snapshotBeforeDelete } from '../utils/auto-backup';
 
 export async function autoresponderList(domain?: string): Promise<void> {
   const creds = getCreds();
@@ -253,6 +254,21 @@ export async function autoresponderDelete(domain?: string): Promise<void> {
       console.log(theme.muted('\n  Cancelled.\n'));
       return;
     }
+
+    // Snapshot autoresponder details before delete
+    let autoresponderData: any = { user };
+    try {
+      const details = await getAutoresponder(creds, targetDomain, user);
+      autoresponderData = { user, ...details };
+    } catch {
+      // best-effort
+    }
+    snapshotBeforeDelete({
+      action: 'autoresponder.delete',
+      domain: targetDomain,
+      type: 'autoresponder',
+      data: autoresponderData,
+    });
 
     const delSpinner = ora({ text: 'Deleting autoresponder...', spinner: 'dots12', color: 'red' }).start();
     const result = await deleteAutoresponder(creds, targetDomain, user);
