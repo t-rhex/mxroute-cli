@@ -1,3 +1,8 @@
+## [1.1.1](https://github.com/t-rhex/mxroute-cli/compare/v1.1.0...v1.1.1) (2026-03-16)
+
+### Bug Fixes
+
+* **dashboard:** wrap all strings in Text components for Ink v3 compatibility ([ce73d68](https://github.com/t-rhex/mxroute-cli/commit/ce73d68a50eb47f0dcd3925577dd26e627602150))
 ## [1.1.0](https://github.com/t-rhex/mxroute-cli/compare/v1.0.3...v1.1.0) (2026-03-16)
 
 ### Features
