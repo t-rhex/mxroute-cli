@@ -12,7 +12,6 @@ import {
   getConfigPath,
 } from '../utils/config';
 import { testAuth } from '../utils/directadmin';
-import { validateEmail } from '../utils/shared';
 
 export async function configSetup(): Promise<void> {
   console.log(theme.heading('Configure MXroute CLI'));
@@ -120,48 +119,11 @@ export async function configSetup(): Promise<void> {
     domain = manualDomain;
   }
 
-  // Step 5: SMTP credentials (optional — for sending email)
-  console.log(theme.heading('SMTP Credentials (optional)'));
-  console.log(theme.muted('  Only needed if you want to send email via CLI (mxroute send / mxroute test).'));
-  console.log(theme.muted("  Uses a specific email account's credentials.\n"));
-
-  const { setupSmtp } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'setupSmtp',
-      message: 'Configure SMTP credentials now?',
-      default: false,
-    },
-  ]);
-
-  let smtpUsername = config.username || '';
-  let smtpPassword = config.password || '';
-
-  if (setupSmtp) {
-    const smtpAnswers = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'username',
-        message: theme.secondary('Email address (SMTP username):'),
-        default: config.username || '',
-        validate: validateEmail,
-      },
-      {
-        type: 'password',
-        name: 'password',
-        message: theme.secondary('Email password:'),
-        mask: '•',
-      },
-    ]);
-    smtpUsername = smtpAnswers.username;
-    smtpPassword = smtpAnswers.password;
-  }
-
   // Save everything
   setProfile(profileName, {
     server,
-    username: smtpUsername,
-    password: smtpPassword,
+    username: config.username || '',
+    password: config.password || '',
     domain,
   });
   setConfig('daUsername', daUsername);
@@ -176,11 +138,6 @@ export async function configSetup(): Promise<void> {
     theme.keyValue('Login Key', '••••••••', 0),
     theme.keyValue('Domain', domain, 0),
   ];
-  if (smtpUsername) {
-    lines.push(theme.keyValue('SMTP Account', smtpUsername, 0));
-  } else {
-    lines.push(theme.keyValue('SMTP', theme.muted('not configured (run mxroute config smtp)'), 0));
-  }
   console.log(theme.box(lines.join('\n'), 'Configuration Saved'));
   console.log('');
   console.log(theme.success(`  ${theme.statusIcon('pass')} Saved to ${theme.muted(getConfigPath())}`));
@@ -189,14 +146,11 @@ export async function configSetup(): Promise<void> {
   console.log(theme.muted('    mxroute domains list     List your domains'));
   console.log(theme.muted('    mxroute accounts list    List email accounts'));
   console.log(theme.muted('    mxroute dns check        Verify DNS records'));
-  if (!smtpUsername) {
-    console.log(theme.muted('    mxroute config smtp      Configure SMTP to send email'));
-  }
   console.log('');
 }
 
-export async function configSmtp(): Promise<void> {
-  console.log(theme.heading('Configure SMTP Credentials'));
+export async function configSendingAccount(): Promise<void> {
+  console.log(theme.heading('Configure Sending Account'));
   console.log(theme.muted('  Used for sending email via mxroute send / mxroute test.\n'));
 
   const config = getConfig();
@@ -210,7 +164,7 @@ export async function configSmtp(): Promise<void> {
     {
       type: 'input',
       name: 'username',
-      message: theme.secondary('Email address (SMTP username):'),
+      message: theme.secondary('Email address to send from:'),
       default: config.username || '',
       validate: (input: string) => (input.includes('@') ? true : 'Must be a full email address'),
     },
@@ -234,26 +188,26 @@ export async function configSmtp(): Promise<void> {
     setConfig('profiles', profiles);
   }
 
-  console.log(theme.success(`\n  ${theme.statusIcon('pass')} SMTP credentials saved for ${answers.username}\n`));
+  console.log(theme.success(`\n  ${theme.statusIcon('pass')} Sending account saved for ${answers.username}\n`));
 }
 
-export async function configRemoveSmtp(): Promise<void> {
+export async function configRemoveSendingAccount(): Promise<void> {
   const config = getConfig();
 
   if (!config.username && !config.password) {
-    console.log(theme.muted('\n  No SMTP credentials configured.\n'));
+    console.log(theme.muted('\n  No sending account configured.\n'));
     return;
   }
 
-  console.log(theme.heading('Remove SMTP Credentials'));
-  console.log(theme.keyValue('Current SMTP account', config.username));
+  console.log(theme.heading('Remove Sending Account'));
+  console.log(theme.keyValue('Current sending account', config.username));
   console.log('');
 
   const { confirm } = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'confirm',
-      message: 'Remove SMTP credentials?',
+      message: 'Remove sending account?',
       default: false,
     },
   ]);
@@ -270,7 +224,7 @@ export async function configRemoveSmtp(): Promise<void> {
       setConfig('profiles', profiles);
     }
 
-    console.log(theme.success(`\n  ${theme.statusIcon('pass')} SMTP credentials removed.\n`));
+    console.log(theme.success(`\n  ${theme.statusIcon('pass')} Sending account removed.\n`));
   } else {
     console.log(theme.muted('\n  Cancelled.\n'));
   }
@@ -295,8 +249,8 @@ export async function configShow(): Promise<void> {
     theme.keyValue('DA Username', config.daUsername || theme.muted('not set'), 0),
     theme.keyValue('Login Key', config.daLoginKey ? '••••••••' : theme.muted('not set'), 0),
     theme.keyValue('Domain', config.domain || theme.muted('not set'), 0),
-    theme.keyValue('SMTP Account', config.username || theme.muted('not configured'), 0),
-    theme.keyValue('SMTP Password', config.password ? '••••••••' : theme.muted('not set'), 0),
+    theme.keyValue('Sending Account', config.username || theme.muted('not configured'), 0),
+    theme.keyValue('Sending Password', config.password ? '••••••••' : theme.muted('not set'), 0),
     theme.keyValue('Config file', getConfigPath(), 0),
   ];
 

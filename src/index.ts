@@ -58,19 +58,21 @@ configCmd
   });
 
 configCmd
-  .command('smtp')
-  .description('Configure SMTP credentials for sending email')
+  .command('sending-account')
+  .alias('smtp')
+  .description('Configure sending account for email')
   .action(async () => {
-    const { configSmtp } = await import('./commands/config');
-    await configSmtp();
+    const { configSendingAccount } = await import('./commands/config');
+    await configSendingAccount();
   });
 
 configCmd
-  .command('remove-smtp')
-  .description('Remove stored SMTP credentials')
+  .command('remove-sending-account')
+  .alias('remove-smtp')
+  .description('Remove stored sending account')
   .action(async () => {
-    const { configRemoveSmtp } = await import('./commands/config');
-    await configRemoveSmtp();
+    const { configRemoveSendingAccount } = await import('./commands/config');
+    await configRemoveSendingAccount();
   });
 
 configCmd
@@ -1206,7 +1208,7 @@ program
 
     const config = getConfig();
     if (!config.server || !config.username || !config.password) {
-      console.log(theme.error(`\n  Run ${theme.bold('mxroute config smtp')} first.\n`));
+      console.log(theme.error(`\n  Run ${theme.bold('mxroute send to set up')} first.\n`));
       process.exit(1);
     }
 

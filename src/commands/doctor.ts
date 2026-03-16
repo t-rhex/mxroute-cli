@@ -75,10 +75,10 @@ export async function doctorCommand(): Promise<void> {
     issues++;
   }
 
-  // 3. SMTP API
+  // 3. Sending Account
   if (!isJsonMode()) {
     console.log('');
-    console.log(theme.subheading('SMTP API'));
+    console.log(theme.subheading('Sending Account'));
   }
   if (config.username && config.password && config.server) {
     if (!isJsonMode()) console.log(`    ${theme.statusIcon('pass')} Configured: ${config.username}`);
@@ -90,7 +90,9 @@ export async function doctorCommand(): Promise<void> {
     });
   } else {
     if (!isJsonMode())
-      console.log(`    ${theme.statusIcon('info')} Not configured (optional — ${theme.bold('mxroute config smtp')})`);
+      console.log(
+        `    ${theme.statusIcon('info')} Not configured (optional — ${theme.bold('mxroute send to set up')})`,
+      );
     jsonChecks.push({ category: 'smtp', check: 'smtp_config', status: 'info', message: 'Not configured (optional)' });
   }
 

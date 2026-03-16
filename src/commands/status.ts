@@ -87,11 +87,11 @@ export async function statusCommand(): Promise<void> {
 
   if (config.username && config.password) {
     console.log(
-      `    ${theme.statusIcon('pass')} ${theme.success('SMTP API')}          ${theme.muted(config.username)}`,
+      `    ${theme.statusIcon('pass')} ${theme.success('Sending Account')}   ${theme.muted(config.username)}`,
     );
   } else {
     console.log(
-      `    ${theme.statusIcon('info')} ${theme.muted('SMTP API')}          ${theme.muted('not configured (optional — run mxroute config smtp)')}`,
+      `    ${theme.statusIcon('info')} ${theme.muted('Sending Account')}   ${theme.muted('not configured (optional — run mxroute send to set up)')}`,
     );
   }
   console.log('');
