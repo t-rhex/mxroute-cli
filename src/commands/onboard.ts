@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds, validateDomain } from '../utils/shared';
-import { listDomains, createEmailAccount, getDkimKey } from '../utils/directadmin';
+import { listDomains, createDomain, createEmailAccount, getDkimKey } from '../utils/directadmin';
 import { getProvider, generateMxrouteRecords, RegistrarConfig } from '../utils/registrars';
 import { runFullDnsCheck } from '../utils/dns';
 
@@ -35,7 +35,7 @@ export async function onboardCommand(domain?: string): Promise<void> {
   console.log(
     alreadyExists
       ? theme.success(`  ${theme.statusIcon('pass')} Already on your MXroute account`)
-      : theme.muted(`  ${theme.statusIcon('info')} Will need to be added via Control Panel`),
+      : theme.muted(`  ${theme.statusIcon('info')} Will be added to your MXroute account`),
   );
   console.log('');
 
@@ -89,6 +89,9 @@ export async function onboardCommand(domain?: string): Promise<void> {
   console.log(theme.heading('Onboarding Plan'));
   const steps: string[] = [];
 
+  if (!alreadyExists) {
+    steps.push(`Add ${domain} to your MXroute account`);
+  }
   if (createAccounts) {
     steps.push('Create admin@, postmaster@, abuse@ accounts');
   }
@@ -124,12 +127,30 @@ export async function onboardCommand(domain?: string): Promise<void> {
   // Execute
   console.log(theme.heading('Executing'));
 
+  // Add domain if it doesn't exist yet
+  let domainReady = alreadyExists;
+  if (!alreadyExists) {
+    const spinner = ora({ text: `Adding ${domain} to your account...`, spinner: 'dots12', color: 'cyan' }).start();
+    try {
+      const result = await createDomain(creds, domain!);
+      if (result.error && result.error !== '0') {
+        spinner.fail(`Failed to add ${domain}: ${result.text || 'unknown error'}`);
+      } else {
+        spinner.succeed(`${domain} added to your MXroute account`);
+        domainReady = true;
+      }
+    } catch (err: any) {
+      spinner.fail(`Failed to add ${domain}: ${err.message}`);
+    }
+    console.log('');
+  }
+
   // Create accounts
   const allAccounts = [];
   if (createAccounts) allAccounts.push('admin', 'postmaster', 'abuse');
   allAccounts.push(...customAccounts);
 
-  if (allAccounts.length > 0 && alreadyExists) {
+  if (allAccounts.length > 0 && domainReady) {
     const createdAccounts: { email: string; password: string }[] = [];
     for (const account of allAccounts) {
       const spinner = ora({ text: `Creating ${account}@${domain}...`, spinner: 'dots12', color: 'cyan' }).start();
@@ -156,10 +177,10 @@ export async function onboardCommand(domain?: string): Promise<void> {
       console.log(theme.warning(`  ${theme.statusIcon('warn')} Save these passwords now — they won't be shown again!`));
     }
     console.log('');
-  } else if (allAccounts.length > 0 && !alreadyExists) {
+  } else if (allAccounts.length > 0 && !domainReady) {
     console.log(
       theme.warning(
-        `\n  ${theme.statusIcon('warn')} Domain not yet on MXroute — add it via Control Panel first, then re-run onboard.\n`,
+        `\n  ${theme.statusIcon('warn')} Could not add domain — account creation skipped. Try adding the domain manually via Control Panel.\n`,
       ),
     );
   }

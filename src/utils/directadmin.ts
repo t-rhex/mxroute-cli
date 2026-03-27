@@ -96,6 +96,13 @@ export async function getDomainInfo(creds: DACredentials, domain: string): Promi
   return daRequest(creds, `CMD_API_DOMAIN?domain=${encodeURIComponent(domain)}`);
 }
 
+export async function createDomain(creds: DACredentials, domain: string): Promise<any> {
+  return daRequest(creds, 'CMD_API_DOMAIN', 'POST', {
+    action: 'create',
+    domain,
+  });
+}
+
 // === Email Account Operations ===
 
 export async function listEmailAccounts(creds: DACredentials, domain: string): Promise<string[]> {
