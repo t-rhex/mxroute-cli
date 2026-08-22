@@ -1,17 +1,23 @@
 import { Resolver } from 'dns';
 import { promisify } from 'util';
 import { getConfig, setConfig } from './config';
-import { detectProvider, getProvider } from '../providers';
+import { detectProvider } from '../providers';
 import { DnsRecord, ProviderCredentials } from '../providers/types';
 import { logActivity } from './activity-log';
 import {
   addDnsRecord as daAddDnsRecord,
+  DACredentials,
   deleteDnsRecord as daDeleteDnsRecord,
   listDnsRecords as daListDnsRecords,
-} from './directadmin';
+} from './management';
 
 const resolver = new Resolver();
 const resolveNs = promisify(resolver.resolveNs.bind(resolver));
+
+function getLegacyDnsCredentials(config: ReturnType<typeof getConfig>): DACredentials | null {
+  if (!config.server || !config.daUsername || !config.daLoginKey) return null;
+  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
+}
 
 export interface RouteResult {
   success: boolean;
@@ -144,12 +150,16 @@ export async function routeDnsAdd(domain: string, record: DnsRecord): Promise<Ro
 
   // Fallback: if MXroute is the DNS authority, use DirectAdmin
   if (isMxrouteAuthority(nameservers, config.server || '')) {
-    try {
-      const creds = {
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
+    const creds = getLegacyDnsCredentials(config);
+    if (!creds) {
+      return {
+        success: false,
+        message: 'Writable MXroute DNS zones require explicit legacy DirectAdmin credentials.',
+        provider: 'mxroute',
+        method: 'none',
       };
+    }
+    try {
       const result = await daAddDnsRecord(creds, domain, record.type, record.name, record.value, record.priority);
       const success = !result.error || result.error === '0';
       if (success) {
@@ -248,12 +258,16 @@ export async function routeDnsDelete(domain: string, record: DnsRecord): Promise
   }
 
   if (isMxrouteAuthority(nameservers, config.server || '')) {
-    try {
-      const creds = {
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
+    const creds = getLegacyDnsCredentials(config);
+    if (!creds) {
+      return {
+        success: false,
+        message: 'Writable MXroute DNS zones require explicit legacy DirectAdmin credentials.',
+        provider: 'mxroute',
+        method: 'none',
       };
+    }
+    try {
       const result = await daDeleteDnsRecord(creds, domain, record.type, record.name, record.value);
       const success = !result.error || result.error === '0';
       if (success) {
@@ -344,12 +358,16 @@ export async function routeDnsList(domain: string): Promise<RouteResult & { reco
   }
 
   if (isMxrouteAuthority(nameservers, config.server || '')) {
-    try {
-      const creds = {
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
+    const creds = getLegacyDnsCredentials(config);
+    if (!creds) {
+      return {
+        success: false,
+        message: 'Listing the writable MXroute DNS zone requires explicit legacy DirectAdmin credentials.',
+        provider: 'mxroute',
+        method: 'none',
       };
+    }
+    try {
       // daListDnsRecords returns raw DirectAdmin data; actual DnsRecord[] parsing
       // is handled by the consumer (dnsapi.ts uses its own parseRecords).
       // We return an empty records array here; callers that need records should

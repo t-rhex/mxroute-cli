@@ -2,8 +2,8 @@ import * as net from 'net';
 import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { getCreds } from '../utils/shared';
-import { listDomains } from '../utils/directadmin';
+import { getCreds, resolveManagementCredentials } from '../utils/shared';
+import { listDomains } from '../utils/management';
 import { checkSpfRecord, checkDkimRecord, checkMxRecords } from '../utils/dns';
 import { sendEmail } from '../utils/api';
 import { isJsonMode, output } from '../utils/json-output';
@@ -92,7 +92,7 @@ export async function monitorCommand(options: { quiet?: boolean; alert?: boolean
 
   // 2. DNS checks for all domains
   let domains: string[] = [];
-  if (config.daUsername && config.daLoginKey) {
+  if (resolveManagementCredentials(config)) {
     try {
       const creds = getCreds();
       domains = await listDomains(creds);

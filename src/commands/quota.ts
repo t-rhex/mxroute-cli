@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getQuotaUsage, getUserConfig, listEmailAccounts, changeEmailQuota } from '../utils/directadmin';
+import { getQuotaUsage, getUserConfig, listEmailAccounts, changeEmailQuota } from '../utils/management';
 import { getCreds, pickDomain } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 

@@ -312,7 +312,7 @@ infoCmd
   });
 
 // ─── Auth ────────────────────────────────────────────────
-const authCmd = program.command('auth').description('Authenticate with MXroute DirectAdmin API');
+const authCmd = program.command('auth').description('Authenticate with the MXroute management API');
 
 authCmd
   .command('login')
@@ -432,7 +432,7 @@ forwardersCmd
 const autoresponderCmd = program
   .command('autoresponder')
   .alias('vacation')
-  .description('Manage autoresponders / vacation messages');
+  .description('Manage autoresponders / vacation messages (legacy DirectAdmin)');
 
 autoresponderCmd
   .command('list [domain]')
@@ -490,7 +490,7 @@ catchallCmd
   });
 
 // ─── Spam ────────────────────────────────────────────────
-const spamCmd = program.command('spam').description('Manage SpamAssassin settings');
+const spamCmd = program.command('spam').description('Manage SpamAssassin settings (legacy DirectAdmin)');
 
 spamCmd
   .command('status [domain]')
@@ -568,12 +568,12 @@ dnsapiCmd
   });
 
 // ─── Email Filters ───────────────────────────────────────
-const filtersCmd = program.command('filters').description('Manage email filters');
+const filtersCmd = program.command('filters').description('Manage email filters (legacy DirectAdmin)');
 
 filtersCmd
   .command('list [domain]')
   .alias('ls')
-  .description('List filters for an account')
+  .description('List domain-wide block filters')
   .action(async (domain?: string) => {
     const { filtersList } = await import('./commands/filters');
     await filtersList(domain);
@@ -598,7 +598,7 @@ filtersCmd
   });
 
 // ─── Mailing Lists ──────────────────────────────────────
-const listsCmd = program.command('lists').alias('mailinglist').description('Manage mailing lists');
+const listsCmd = program.command('lists').alias('mailinglist').description('Manage mailing lists (legacy DirectAdmin)');
 
 listsCmd
   .command('list [domain]')
@@ -731,7 +731,7 @@ program
 // ─── Export / Import ─────────────────────────────────────
 program
   .command('export [domain]')
-  .description('Export domain config (accounts, forwarders, autoresponders)')
+  .description('Export domain config (autoresponders/spam require legacy DirectAdmin)')
   .action(async (domain?: string) => {
     const { exportCommand } = await import('./commands/export-import');
     await exportCommand(domain);
@@ -739,7 +739,7 @@ program
 
 program
   .command('import [file]')
-  .description('Import domain config from export file')
+  .description('Import domain config (legacy fields require DirectAdmin)')
   .action(async (file?: string) => {
     const { importCommand } = await import('./commands/export-import');
     await importCommand(file);
@@ -1073,7 +1073,9 @@ program
   });
 
 // ─── Schedule ───────────────────────────────────────────
-const scheduleCmd = program.command('schedule').description('Schedule autoresponder enable/disable by date');
+const scheduleCmd = program
+  .command('schedule')
+  .description('Schedule autoresponder enable/disable by date (legacy DirectAdmin)');
 
 scheduleCmd
   .command('create [domain]')
@@ -1360,7 +1362,7 @@ program
 program
   .command('deprovision [domain]')
   .alias('offboard')
-  .description('Offboard an employee — forward emails, set auto-reply, or delete account')
+  .description('Offboard an employee (auto-reply requires legacy DirectAdmin)')
   .action(async (domain?: string) => {
     const { deprovisionAccount } = await import('./commands/deprovision');
     await deprovisionAccount(domain);

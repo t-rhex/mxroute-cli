@@ -1,14 +1,14 @@
 import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { getCreds } from '../utils/shared';
+import { getCreds, isDirectForwardingLoop } from '../utils/shared';
 import {
   listDomains,
   listEmailAccounts,
   listForwarders,
   getForwarderDestination,
   getCatchAll,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
 import { isJsonMode, output } from '../utils/json-output';
 
@@ -199,13 +199,12 @@ export async function auditCommand(): Promise<void> {
       for (const fwd of forwarders) {
         try {
           const dest = await getForwarderDestination(creds, domain, fwd);
-          // Check if forwarding to same domain (possible loop)
-          if (dest.includes(`@${domain}`)) {
+          if (isDirectForwardingLoop(`${fwd}@${domain}`, dest)) {
             results.push({
               category: 'Email',
               check: 'Forwarding Loop',
               status: 'warn',
-              message: `${fwd}@${domain} forwards to ${dest} (same domain — possible loop)`,
+              message: `${fwd}@${domain} forwards to itself`,
               domain,
             });
             score -= 3;

@@ -31,7 +31,7 @@ describe('Config Migration', () => {
   });
 
   it('migrateConfig should migrate registrar.provider key to providers map', () => {
-    const { migrateConfig, getProviderCreds } = require('../dist/utils/dns-router');
+    const { migrateConfig } = require('../dist/utils/dns-router');
     const { getConfig } = require('../dist/utils/config');
 
     // Verify that migrateConfig handles the case where config.registrar exists

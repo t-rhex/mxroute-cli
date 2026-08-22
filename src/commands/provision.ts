@@ -13,7 +13,7 @@ import {
   listForwarders,
   createForwarder,
   changeEmailQuota,
-} from '../utils/directadmin';
+} from '../utils/management';
 
 interface ProvisionAccount {
   user: string;

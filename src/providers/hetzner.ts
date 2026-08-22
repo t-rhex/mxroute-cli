@@ -37,7 +37,9 @@ export const hetzner: DnsProvider = {
       const res = await fetch(`${API_BASE}/zones?per_page=1`, {
         headers: authHeaders(creds),
       });
-      return res.status === 200;
+      if (!res.ok) return false;
+      const data = (await res.json()) as any;
+      return Array.isArray(data.zones);
     } catch {
       return false;
     }

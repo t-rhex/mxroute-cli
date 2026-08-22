@@ -15,7 +15,7 @@ import {
   createAutoresponder,
   deleteAutoresponder,
   setSpamConfig,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { runFullDnsCheck } from '../utils/dns';
 
 // Action map linking playbook actions to existing functions
@@ -159,9 +159,9 @@ export function playbookActions(): void {
     ['forwarders.create', 'Create forwarder(s) — supports bulk via rules[] array'],
     ['forwarders.delete', 'Delete a forwarder'],
     ['catchall.set', 'Set catch-all address (:fail:, :blackhole:, or email)'],
-    ['autoresponder.create', 'Create an autoresponder/vacation message'],
-    ['autoresponder.delete', 'Delete an autoresponder'],
-    ['spam.config', 'Configure SpamAssassin settings'],
+    ['autoresponder.create', 'Create an autoresponder/vacation message (legacy DirectAdmin)'],
+    ['autoresponder.delete', 'Delete an autoresponder (legacy DirectAdmin)'],
+    ['spam.config', 'Configure SpamAssassin settings (legacy DirectAdmin)'],
     ['dns.check', 'Run DNS health check for a domain'],
   ];
 

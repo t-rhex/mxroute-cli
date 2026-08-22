@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
 import { getConfig } from '../utils/config';
-import { listDomains, listEmailAccounts, listForwarders, getQuotaUsage } from '../utils/directadmin';
+import { listDomains, listEmailAccounts, listForwarders, getQuotaUsage } from '../utils/management';
+import { resolveManagementCredentials } from '../utils/shared';
 import { runFullDnsCheck, DnsCheckResult } from '../utils/dns';
 
 interface DomainData {
@@ -103,22 +104,25 @@ function App() {
       setServer(config.server);
       setProfile(config.activeProfile);
 
-      if (!config.daUsername || !config.daLoginKey) {
+      const credentials = resolveManagementCredentials(config);
+      if (!credentials) {
         setError('Not authenticated. Run: mxroute config setup');
         setLoading(false);
         return;
       }
 
-      const creds = { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-      const [domainNames, usage] = await Promise.all([listDomains(creds), getQuotaUsage(creds).catch(() => ({}))]);
+      const [domainNames, usage] = await Promise.all([
+        listDomains(credentials),
+        getQuotaUsage(credentials).catch(() => ({})),
+      ]);
 
       setDiskUsed(`${usage.quota || usage.disk || '?'} MB`);
 
       const domainData: DomainData[] = [];
       for (const name of domainNames) {
         const [accounts, forwarders, dns] = await Promise.all([
-          listEmailAccounts(creds, name).catch(() => []),
-          listForwarders(creds, name).catch(() => []),
+          listEmailAccounts(credentials, name).catch(() => []),
+          listForwarders(credentials, name).catch(() => []),
           runFullDnsCheck(name, config.server).catch(() => []),
         ]);
         domainData.push({ name, accounts: accounts.length, forwarders: forwarders.length, dns });

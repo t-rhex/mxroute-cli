@@ -155,7 +155,7 @@ export const commandExamples: Record<string, CommandInfo> = {
     related: ['forwarders list', 'accounts list', 'filters'],
   },
   autoresponder: {
-    description: 'Manage autoresponders (out-of-office replies) for email accounts',
+    description: 'Manage autoresponders for email accounts (legacy DirectAdmin)',
     examples: [
       'mxroute autoresponder list user@example.com',
       'mxroute autoresponder create user@example.com --message "I am away"',
@@ -164,16 +164,16 @@ export const commandExamples: Record<string, CommandInfo> = {
     related: ['accounts list', 'filters', 'templates'],
   },
   filters: {
-    description: 'Manage email filters for accounts',
+    description: 'Manage domain-wide email block filters (legacy DirectAdmin)',
     examples: [
-      'mxroute filters list user@example.com',
-      'mxroute filters create user@example.com --rule "subject contains SPAM" --action delete',
-      'mxroute filters delete user@example.com --id FILTER_ID',
+      'mxroute filters list example.com',
+      'mxroute filters create example.com',
+      'mxroute filters delete example.com',
     ],
     related: ['spam', 'accounts list', 'autoresponder'],
   },
   lists: {
-    description: 'Manage mailing lists for a domain',
+    description: 'Manage mailing lists for a domain (legacy DirectAdmin)',
     examples: [
       'mxroute lists list example.com',
       'mxroute lists create newsletter@example.com',
@@ -348,7 +348,7 @@ export const commandExamples: Record<string, CommandInfo> = {
 
   // Spam & Security
   spam: {
-    description: 'View and configure spam filter settings for accounts',
+    description: 'View and configure spam filter settings (legacy DirectAdmin)',
     examples: [
       'mxroute spam config user@example.com',
       'mxroute spam set user@example.com --level 5',

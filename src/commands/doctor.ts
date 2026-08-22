@@ -3,7 +3,8 @@ import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { runFullDnsCheck } from '../utils/dns';
-import { testAuth, listDomains, getQuotaUsage } from '../utils/directadmin';
+import { testAuth, listDomains, getQuotaUsage } from '../utils/management';
+import { resolveManagementCredentials } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 
 export async function doctorCommand(): Promise<void> {
@@ -30,33 +31,33 @@ export async function doctorCommand(): Promise<void> {
     issues++;
   }
 
-  // 2. DirectAdmin API
+  // 2. Management API
+  const managementCredentials = resolveManagementCredentials(config);
+  const managementLabel = config.managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin API';
+  const managementUsername = config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername;
+  const managementCheck = config.managementBackend === 'mxroute-api' ? 'management_auth' : 'directadmin_auth';
   if (!isJsonMode()) {
     console.log('');
-    console.log(theme.subheading('DirectAdmin API'));
+    console.log(theme.subheading(managementLabel));
   }
-  if (config.daUsername && config.daLoginKey) {
+  if (managementCredentials) {
     const spinner = isJsonMode() ? null : ora({ text: 'Testing API...', spinner: 'dots12', color: 'cyan' }).start();
     try {
-      const result = await testAuth({
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
-      });
+      const result = await testAuth(managementCredentials);
       spinner?.stop();
       if (result.success) {
-        if (!isJsonMode()) console.log(`    ${theme.statusIcon('pass')} Authenticated as ${config.daUsername}`);
+        if (!isJsonMode()) console.log(`    ${theme.statusIcon('pass')} Authenticated as ${managementUsername}`);
         jsonChecks.push({
           category: 'api',
-          check: 'directadmin_auth',
+          check: managementCheck,
           status: 'pass',
-          message: `Authenticated as ${config.daUsername}`,
+          message: `Authenticated as ${managementUsername}`,
         });
       } else {
         if (!isJsonMode()) console.log(`    ${theme.statusIcon('fail')} Auth failed: ${result.message}`);
         jsonChecks.push({
           category: 'api',
-          check: 'directadmin_auth',
+          check: managementCheck,
           status: 'fail',
           message: result.message || 'Auth failed',
         });
@@ -65,13 +66,13 @@ export async function doctorCommand(): Promise<void> {
     } catch (err: any) {
       spinner?.stop();
       if (!isJsonMode()) console.log(`    ${theme.statusIcon('fail')} Connection error: ${err.message}`);
-      jsonChecks.push({ category: 'api', check: 'directadmin_auth', status: 'fail', message: err.message });
+      jsonChecks.push({ category: 'api', check: managementCheck, status: 'fail', message: err.message });
       issues++;
     }
   } else {
     if (!isJsonMode())
       console.log(`    ${theme.statusIcon('warn')} Not configured — run ${theme.bold('mxroute config setup')}`);
-    jsonChecks.push({ category: 'api', check: 'directadmin_auth', status: 'warn', message: 'Not configured' });
+    jsonChecks.push({ category: 'api', check: managementCheck, status: 'warn', message: 'Not configured' });
     issues++;
   }
 
@@ -98,7 +99,7 @@ export async function doctorCommand(): Promise<void> {
 
   // 4. DNS for all domains
   const dnsResults: Array<{ domain: string; passed: number; failed: number; total: number; checks: any[] }> = [];
-  if (config.daUsername && config.daLoginKey && config.server) {
+  if (managementCredentials && config.server) {
     if (!isJsonMode()) {
       console.log('');
       console.log(theme.subheading('DNS Health (all domains)'));
@@ -107,11 +108,7 @@ export async function doctorCommand(): Promise<void> {
       ? null
       : ora({ text: 'Fetching domains...', spinner: 'dots12', color: 'cyan' }).start();
     try {
-      const domains = await listDomains({
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
-      });
+      const domains = await listDomains(managementCredentials);
       domSpinner?.stop();
 
       for (const domain of domains) {
@@ -160,17 +157,13 @@ export async function doctorCommand(): Promise<void> {
 
   // 5. Quota check
   let diskUsed = 0;
-  if (config.daUsername && config.daLoginKey) {
+  if (managementCredentials) {
     if (!isJsonMode()) {
       console.log('');
       console.log(theme.subheading('Quota'));
     }
     try {
-      const usage = await getQuotaUsage({
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
-      });
+      const usage = await getQuotaUsage(managementCredentials);
       diskUsed = Number(usage.quota || usage.disk || 0);
       if (!isJsonMode() && diskUsed > 0) {
         console.log(`    ${theme.statusIcon('pass')} Disk used: ${diskUsed} MB`);

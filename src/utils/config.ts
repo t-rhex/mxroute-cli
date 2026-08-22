@@ -18,6 +18,10 @@ interface MXRouteConfig {
   activeProfile: string;
   daUsername: string;
   daLoginKey: string;
+  managementBackend: 'directadmin' | 'mxroute-api';
+  apiServer: string;
+  apiUsername: string;
+  apiKey: string;
   configVersion: number;
   providers: Record<string, any>;
 }
@@ -43,7 +47,11 @@ function readConfig(): MXRouteConfig {
       activeProfile: 'default',
       daUsername: '',
       daLoginKey: '',
-      configVersion: 1,
+      managementBackend: 'directadmin',
+      apiServer: '',
+      apiUsername: '',
+      apiKey: '',
+      configVersion: 2,
       providers: {},
     };
   }
@@ -56,7 +64,11 @@ function readConfig(): MXRouteConfig {
     activeProfile: 'default',
     daUsername: '',
     daLoginKey: '',
-    configVersion: 1,
+    managementBackend: 'directadmin',
+    apiServer: '',
+    apiUsername: '',
+    apiKey: '',
+    configVersion: 2,
     providers: {},
   };
   try {

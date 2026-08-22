@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { theme } from '../utils/theme';
-import { createAutoresponder, deleteAutoresponder, listEmailAccounts } from '../utils/directadmin';
+import { createAutoresponder, deleteAutoresponder, listEmailAccounts } from '../utils/management';
 import { getCreds, pickDomain } from '../utils/shared';
 import { getConfigPath } from '../utils/config';
 

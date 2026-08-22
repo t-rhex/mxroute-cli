@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { listEmailAccounts } from '../utils/directadmin';
+import { listEmailAccounts } from '../utils/management';
 import { getCreds, pickDomain } from '../utils/shared';
 
 function shellEscape(s: string): string {

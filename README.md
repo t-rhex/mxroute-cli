@@ -85,8 +85,8 @@ This installs two binaries:
 mxroute setup
 
 # Or configure step by step:
-mxroute config setup          # SMTP credentials (for sending email)
-mxroute auth login            # DirectAdmin API auth (for account management)
+mxroute config setup          # Management API and primary domain
+mxroute config smtp           # Mailbox credentials for sending and IMAP
 
 # 2. Check your DNS records
 mxroute dns check
@@ -113,23 +113,26 @@ mxroute status
 
 ## Credentials
 
-The CLI uses two types of credentials:
+The CLI keeps management and mailbox credentials separate:
 
 | Credential | Purpose | Where to find |
 |---|---|---|
 | **Server hostname** | Identifies your MXroute server | Control Panel -> DNS section (e.g., `tuesday`, `fusion`) |
 | **Email + password** | SMTP API (sending email) | Your email account credentials |
-| **DirectAdmin username** | API authentication | Your DirectAdmin login username |
-| **Login Key** | API authentication (recommended) | Control Panel -> Login Keys -> Create new key |
+| **API server** | `X-Server` for account management | Control Panel -> Advanced -> API Keys |
+| **API username** | `X-Username` for account management | Control Panel -> Advanced -> API Keys |
+| **MXroute API key** | Current account-management authentication | Control Panel -> Advanced -> API Keys |
+| **DirectAdmin Login Key** | Optional legacy-only authentication | Retain only when an unsupported legacy feature is required |
 
-> **Why Login Keys?** They are more secure than passwords -- you can restrict permissions, set expiry dates, and revoke them without changing your password.
+The API server is stored separately from the IMAP/SMTP server and must be entered exactly as displayed on the API Keys page. The CLI never silently falls back to DirectAdmin after an MXroute API failure.
 
 **Which commands need which credentials:**
 
 | Credential | Required for |
 |---|---|
 | **SMTP credentials** | `send`, `test`, `webhook`, `monitor` |
-| **DirectAdmin Login Key** | `domains`, `accounts`, `forwarders`, `autoresponder`, `catchall`, `spam`, `dnsrecords`, `filters`, `lists`, `aliases`, `quota`, `audit`, `doctor`, `export` |
+| **MXroute API key** | `domains`, `accounts`, `forwarders`, `catchall`, `aliases`, `quota`, DKIM retrieval, and related audit/provisioning operations |
+| **DirectAdmin Login Key (legacy)** | `autoresponder`, `filters`, `lists`, writable MXroute DNS zones, and full SpamAssassin settings |
 | **None** (server name only) | `dns check`, `dns records`, `dns generate`, `info`, `troubleshoot`, `ip` |
 
 ---
@@ -160,7 +163,7 @@ mxroute config delete [name]   # Delete a profile
 #### auth -- Authentication
 
 ```bash
-mxroute auth login             # Interactive login with Login Key
+mxroute auth login             # Interactive management API setup
 mxroute auth status            # Verify stored credentials are valid
 mxroute auth logout            # Remove stored credentials
 ```
@@ -168,9 +171,10 @@ mxroute auth logout            # Remove stored credentials
 **Example:**
 ```bash
 $ mxroute auth login
-? Server hostname: fusion
-? DirectAdmin username: myuser
-? Login Key: ••••••••
+? Account management connection: MXroute API Key (recommended)
+? API server: eagle.mxlogin.com
+? API username: myuser
+? API key: ••••••••
 ✔ Authentication successful!
 ```
 
@@ -315,12 +319,12 @@ Options: forward to existing account, forward to custom email, reject (`:fail:`)
 #### filters -- Email Filters
 
 ```bash
-mxroute filters list [domain]          # List filters for an account
+mxroute filters list [domain]          # List domain-wide block filters
 mxroute filters create [domain]        # Create a filter (interactive)
 mxroute filters delete [domain]        # Delete a filter
 ```
 
-Supports matching on from, to, subject, or body with actions to discard, forward, or move to a folder.
+Supports blocking an email address, sender domain, word or phrase, or message size across a domain.
 
 #### lists / mailinglist -- Mailing Lists
 
@@ -753,6 +757,12 @@ mxroute info client <name>            # Client setup guide (ios, outlook, thunde
 
 Configuration is stored at `~/.config/mxroute-cli/config.json` with file permissions `0600` (owner-only read/write).
 
+### Management Backends
+
+The recommended backend is the current MXroute API at `https://api.mxroute.com`. Read requests retry bounded `429` and transient server errors, write requests honor `Retry-After`, and writes are paced to the documented 20-per-minute limit. API errors do not trigger hidden legacy fallback.
+
+MXroute's current API does not yet expose every historical DirectAdmin feature. You may retain separate legacy credentials for autoresponders, email filters, mailing lists, writable MXroute-hosted DNS zones, and full SpamAssassin controls. Commands that need those capabilities fail with an explicit explanation when legacy credentials are absent.
+
 ### Multiple Profiles
 
 Manage different MXroute accounts from one CLI:
@@ -1001,6 +1011,7 @@ npm run build
 - ESLint and Prettier enforce consistent style
 - Husky pre-commit hooks run lint-staged on every commit
 - GitHub Actions CI validates on Node.js 20 and 22
+- Dependabot checks npm and GitHub Actions dependencies weekly
 - Tag-based release workflow publishes to npm with provenance
 
 ### Project Structure

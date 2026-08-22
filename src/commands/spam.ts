@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getSpamConfig, setSpamConfig } from '../utils/directadmin';
+import { getSpamConfig, setSpamConfig } from '../utils/management';
 import { getCreds, pickDomain } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 
@@ -61,7 +61,7 @@ export async function spamEnable(domain?: string): Promise<void> {
     const result = await setSpamConfig(creds, targetDomain, {
       action: 'save',
       enabled: 'yes',
-      where: 'userspamfolder',
+      where: 'inbox',
       required_score: '5',
     });
 
@@ -72,7 +72,7 @@ export async function spamEnable(domain?: string): Promise<void> {
       );
     } else {
       spinner.succeed(chalk.green(`SpamAssassin enabled for ${targetDomain}`));
-      console.log(theme.muted('  Score threshold: 5 | Spam folder: userspamfolder'));
+      console.log(theme.muted('  Score threshold: 5 | Delivery: inbox'));
       console.log('');
     }
   } catch (err: any) {
@@ -132,11 +132,10 @@ export async function spamConfig(domain?: string): Promise<void> {
       name: 'where',
       message: theme.secondary('Where to put spam:'),
       choices: [
-        { name: 'Spam folder (recommended)', value: 'userspamfolder' },
-        { name: 'Inbox (mark as spam)', value: 'inbox' },
+        { name: 'Inbox (recommended)', value: 'inbox' },
         { name: 'Delete immediately', value: 'delete' },
       ],
-      default: 'userspamfolder',
+      default: 'inbox',
     },
     {
       type: 'number',
@@ -153,7 +152,6 @@ export async function spamConfig(domain?: string): Promise<void> {
       name: 'high_score_block',
       message: theme.secondary('High score action:'),
       choices: [
-        { name: 'Move to spam folder', value: 'userspamfolder' },
         { name: 'Delete immediately', value: 'delete' },
         { name: 'Deliver to inbox', value: 'inbox' },
       ],

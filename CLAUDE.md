@@ -1,7 +1,7 @@
 # CLAUDE.md - Project Conventions
 
 ## Project Overview
-mxroute-cli — CLI and MCP server for managing MXroute email hosting (DirectAdmin API, IMAP, SMTP). Node.js >= 20, TypeScript, MIT license.
+mxroute-cli — CLI and MCP server for managing MXroute email hosting (MXroute API, legacy DirectAdmin, IMAP, SMTP). Node.js >= 20, TypeScript, MIT license.
 
 ## Build & Test Commands
 - `npm run build` — compile TypeScript (tsc, outputs to dist/)
@@ -16,6 +16,9 @@ mxroute-cli — CLI and MCP server for managing MXroute email hosting (DirectAdm
 - `src/index.ts` — CLI entry point (commander)
 - `src/mcp.ts` — MCP server entry point
 - `src/commands/` — CLI command implementations
+- `src/utils/management.ts` — explicit current/legacy management backend seam
+- `src/utils/mxroute-api.ts` — current MXroute API client
+- `src/utils/directadmin.ts` — legacy DirectAdmin adapter
 - `src/utils/` — shared utilities (imap, mime, dns, smtp, config)
 - `dist/` — compiled output (CommonJS, ES2020 target)
 

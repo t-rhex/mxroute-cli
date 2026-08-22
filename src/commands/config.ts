@@ -11,7 +11,7 @@ import {
   deleteProfile,
   getConfigPath,
 } from '../utils/config';
-import { testAuth } from '../utils/directadmin';
+import { testAuth } from '../utils/management';
 
 export async function configSetup(): Promise<void> {
   console.log(theme.heading('Configure MXroute CLI'));
@@ -43,38 +43,87 @@ export async function configSetup(): Promise<void> {
     },
   ]);
 
-  // Step 3: DirectAdmin API credentials (primary auth)
-  console.log(theme.heading('DirectAdmin API Authentication'));
-  console.log(theme.muted('  This is your primary authentication — gives access to all account management.'));
-  console.log(theme.muted('  Create a Login Key at Control Panel (panel.mxroute.com) -> Login Keys\n'));
-  console.log(theme.muted('  How to create a Login Key:'));
-  console.log(theme.muted('    1. Go to panel.mxroute.com and log in'));
-  console.log(theme.muted('    2. Click "Login Keys" (under your account)'));
-  console.log(theme.muted('    3. Create a new key — copy the key value'));
-  console.log(theme.muted('    4. Your username is shown at the top of the panel\n'));
-
-  const { daUsername, daLoginKey } = await inquirer.prompt([
+  // Step 3: Management API credentials
+  const { managementBackend } = await inquirer.prompt([
     {
-      type: 'input',
-      name: 'daUsername',
-      message: theme.secondary('DirectAdmin username:'),
-      default: config.daUsername || '',
-      validate: (input: string) => (input.trim() ? true : 'Username is required'),
-    },
-    {
-      type: 'password',
-      name: 'daLoginKey',
-      message: theme.secondary('Login Key (API key):'),
-      mask: '•',
-      validate: (input: string) => (input.trim() ? true : 'Login key is required'),
+      type: 'list',
+      name: 'managementBackend',
+      message: theme.secondary('Account management connection:'),
+      choices: [
+        { name: 'MXroute API Key (recommended)', value: 'mxroute-api' },
+        { name: 'DirectAdmin Login Key (legacy features)', value: 'directadmin' },
+      ],
     },
   ]);
+
+  let managementCreds: any;
+  let managementUsername = '';
+  if (managementBackend === 'mxroute-api') {
+    console.log(theme.heading('MXroute API Authentication'));
+    console.log(theme.muted('  Create a key at panel.mxroute.com → Advanced → API Keys.'));
+    console.log(theme.muted('  Use the exact server hostname displayed on that page.\n'));
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'apiServer',
+        message: theme.secondary('API server (e.g., eagle.mxlogin.com):'),
+        default: config.apiServer || '',
+        validate: (input: string) => (input.trim() ? true : 'API server is required'),
+        filter: (input: string) => input.trim(),
+      },
+      {
+        type: 'input',
+        name: 'apiUsername',
+        message: theme.secondary('API username:'),
+        default: config.apiUsername || config.daUsername || '',
+        validate: (input: string) => (input.trim() ? true : 'Username is required'),
+      },
+      {
+        type: 'password',
+        name: 'apiKey',
+        message: theme.secondary('API key:'),
+        mask: '•',
+        validate: (input: string) => (input.trim() ? true : 'API key is required'),
+      },
+    ]);
+    managementUsername = answers.apiUsername;
+    managementCreds = {
+      backend: 'mxroute-api',
+      server: answers.apiServer,
+      username: answers.apiUsername,
+      apiKey: answers.apiKey,
+      ...(config.daUsername && config.daLoginKey
+        ? { legacy: { server, username: config.daUsername, loginKey: config.daLoginKey } }
+        : {}),
+    };
+  } else {
+    console.log(theme.heading('Legacy DirectAdmin Authentication'));
+    console.log(theme.muted('  Retain this only for features not available in the current MXroute API.\n'));
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'daUsername',
+        message: theme.secondary('DirectAdmin username:'),
+        default: config.daUsername || '',
+        validate: (input: string) => (input.trim() ? true : 'Username is required'),
+      },
+      {
+        type: 'password',
+        name: 'daLoginKey',
+        message: theme.secondary('DirectAdmin Login Key:'),
+        mask: '•',
+        validate: (input: string) => (input.trim() ? true : 'Login key is required'),
+      },
+    ]);
+    managementUsername = answers.daUsername;
+    managementCreds = { server, username: answers.daUsername, loginKey: answers.daLoginKey };
+  }
 
   // Test API auth
   const spinner = ora({ text: 'Testing authentication...', spinner: 'dots12', color: 'cyan' }).start();
   let authOk = false;
   try {
-    const result = await testAuth({ server, username: daUsername, loginKey: daLoginKey });
+    const result = await testAuth(managementCreds);
     if (result.success) {
       spinner.succeed(chalk.green('Authentication successful'));
       authOk = true;
@@ -89,8 +138,8 @@ export async function configSetup(): Promise<void> {
   let domain = config.domain || '';
   if (authOk) {
     try {
-      const { listDomains } = require('../utils/directadmin');
-      const domains = await listDomains({ server, username: daUsername, loginKey: daLoginKey });
+      const { listDomains } = require('../utils/management');
+      const domains = await listDomains(managementCreds);
       if (domains.length === 1) {
         domain = domains[0];
         console.log(theme.muted(`\n  Auto-detected domain: ${theme.bold(domain)}`));
@@ -134,16 +183,24 @@ export async function configSetup(): Promise<void> {
     password: config.password || '',
     domain,
   });
-  setConfig('daUsername', daUsername);
-  setConfig('daLoginKey', daLoginKey);
+  setConfig('managementBackend', managementBackend);
+  if (managementBackend === 'mxroute-api') {
+    setConfig('apiServer', managementCreds.server);
+    setConfig('apiUsername', managementCreds.username);
+    setConfig('apiKey', managementCreds.apiKey);
+  } else {
+    setConfig('daUsername', managementCreds.username);
+    setConfig('daLoginKey', managementCreds.loginKey);
+  }
 
   // Summary
   console.log('');
   const lines = [
     theme.keyValue('Profile', profileName, 0),
     theme.keyValue('Server', `${server}.mxrouting.net`, 0),
-    theme.keyValue('DA Username', daUsername, 0),
-    theme.keyValue('Login Key', '••••••••', 0),
+    theme.keyValue('Management API', managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin (legacy)', 0),
+    theme.keyValue('API Username', managementUsername, 0),
+    theme.keyValue('API Key', '••••••••', 0),
     theme.keyValue('Domain', domain, 0),
   ];
   console.log(theme.box(lines.join('\n'), 'Configuration Saved'));
@@ -242,7 +299,7 @@ export async function configShow(): Promise<void> {
   const config = getConfig();
   console.log(theme.heading('Current Configuration'));
 
-  if (!config.server && !config.daUsername) {
+  if (!config.server && !config.daUsername && !config.apiKey) {
     console.log(
       theme.warning(
         `  ${theme.statusIcon('warn')} No configuration found. Run ${theme.bold('mxroute config setup')} first.`,
@@ -254,8 +311,33 @@ export async function configShow(): Promise<void> {
   const lines = [
     theme.keyValue('Profile', config.activeProfile, 0),
     theme.keyValue('Server', config.server ? `${config.server}.mxrouting.net` : theme.muted('not set'), 0),
-    theme.keyValue('DA Username', config.daUsername || theme.muted('not set'), 0),
-    theme.keyValue('Login Key', config.daLoginKey ? '••••••••' : theme.muted('not set'), 0),
+    theme.keyValue(
+      'Management API',
+      config.managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin (legacy)',
+      0,
+    ),
+    theme.keyValue(
+      'API Server',
+      config.managementBackend === 'mxroute-api'
+        ? config.apiServer || theme.muted('not set')
+        : config.server
+          ? `${config.server}.mxrouting.net:2222`
+          : theme.muted('not set'),
+      0,
+    ),
+    theme.keyValue(
+      'API Username',
+      (config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername) || theme.muted('not set'),
+      0,
+    ),
+    theme.keyValue(
+      'API Key',
+      (config.managementBackend === 'mxroute-api' ? config.apiKey : config.daLoginKey)
+        ? '••••••••'
+        : theme.muted('not set'),
+      0,
+    ),
+    theme.keyValue('Legacy DirectAdmin', config.daLoginKey ? 'configured' : theme.muted('not configured'), 0),
     theme.keyValue('Domain', config.domain || theme.muted('not set'), 0),
     theme.keyValue('Sending Account', config.username || theme.muted('not configured'), 0),
     theme.keyValue('Sending Password', config.password ? '••••••••' : theme.muted('not set'), 0),

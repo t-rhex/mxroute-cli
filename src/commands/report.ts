@@ -13,7 +13,7 @@ import {
   getSpamConfig,
   getQuotaUsage,
   getUserConfig,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { runFullDnsCheck } from '../utils/dns';
 import { checkAllBlacklists, resolveServerIp } from '../utils/blacklist';
 
@@ -29,15 +29,16 @@ export async function reportCommand(): Promise<void> {
     // Gather all data
     const domains = await listDomains(creds);
     const [usage, userConfig] = await Promise.all([getQuotaUsage(creds), getUserConfig(creds)]);
+    const legacyAvailable = !!(config.daUsername && config.daLoginKey);
 
     const domainData: any[] = [];
     for (const domain of domains) {
       const [accounts, forwarders, autoresponders, catchAll, spamConfig, dnsResults] = await Promise.all([
         listEmailAccounts(creds, domain).catch(() => []),
         listForwarders(creds, domain).catch(() => []),
-        listAutoresponders(creds, domain).catch(() => []),
+        legacyAvailable ? listAutoresponders(creds, domain).catch(() => null) : Promise.resolve(null),
         getCatchAll(creds, domain).catch(() => ''),
-        getSpamConfig(creds, domain).catch(() => ({})),
+        legacyAvailable ? getSpamConfig(creds, domain).catch(() => null) : Promise.resolve(null),
         runFullDnsCheck(domain, config.server).catch(() => []),
       ]);
 
@@ -109,7 +110,7 @@ function generateReportHtml(data: any): string {
       <div class="grid">
         <div class="stat"><span class="num">${d.accounts.length}</span><span class="label">Accounts</span></div>
         <div class="stat"><span class="num">${d.forwarders.length}</span><span class="label">Forwarders</span></div>
-        <div class="stat"><span class="num">${d.autoresponders.length}</span><span class="label">Autoresponders</span></div>
+        <div class="stat"><span class="num">${d.autoresponders ? d.autoresponders.length : 'N/A'}</span><span class="label">Autoresponders${d.autoresponders ? '' : ' (legacy credentials required)'}</span></div>
       </div>
       <div class="detail"><strong>Catch-all:</strong> ${catchAllLabel}</div>
       ${d.accounts.length > 0 ? `<div class="detail"><strong>Accounts:</strong> ${d.accounts.map((a: string) => `${a}@${d.domain}`).join(', ')}</div>` : ''}

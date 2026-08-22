@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds } from '../utils/shared';
-import { listDomains, listEmailAccounts, getCatchAll, setCatchAll, getDkimKey } from '../utils/directadmin';
+import { listDomains, listEmailAccounts, getCatchAll, setCatchAll, getDkimKey } from '../utils/management';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
 import { routeDnsAdd, routeDnsDelete } from '../utils/dns-router';
 import { generateMxrouteRecords } from '../providers/mxroute-records';
@@ -103,13 +103,13 @@ export async function fixCommand(): Promise<void> {
     // Check DKIM
     const dkim = await checkDkimRecord(domain);
     if (dkim.status === 'fail') {
-      // Try to get DKIM from DirectAdmin
+      // Try to get DKIM from the configured management backend.
       const dkimKey = await getDkimKey(creds, domain);
       if (dkimKey) {
         actions.push({
           domain,
           issue: 'DKIM record missing in DNS',
-          fix: 'Create DKIM TXT record from DirectAdmin key',
+          fix: 'Create DKIM TXT record from the MXroute key',
           execute: async () =>
             routeDnsAdd(domain, {
               type: 'TXT',

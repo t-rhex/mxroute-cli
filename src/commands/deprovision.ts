@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { listEmailAccounts, deleteEmailAccount, createForwarder, createAutoresponder } from '../utils/directadmin';
+import { listEmailAccounts, deleteEmailAccount, createForwarder, createAutoresponder } from '../utils/management';
 import { getCreds, pickDomain, validateEmail } from '../utils/shared';
 
 export async function deprovisionAccount(domain?: string): Promise<void> {

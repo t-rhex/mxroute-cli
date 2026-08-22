@@ -15,7 +15,7 @@ import { sendEmail } from './utils/api';
 import { ImapClient } from './utils/imap';
 import { parseMessage, htmlToText, formatFileSize } from './utils/mime';
 import {
-  DACredentials,
+  ManagementCredentials,
   listDomains,
   listEmailAccounts,
   createEmailAccount,
@@ -49,18 +49,20 @@ import {
   deleteDomainPointer,
   getQuotaUsage,
   getUserConfig,
-} from './utils/directadmin';
+} from './utils/management';
 import { runFullDnsCheck, checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from './utils/dns';
-import { testAuth } from './utils/directadmin';
+import { testAuth } from './utils/management';
 import { routeDnsAdd, routeDnsDelete } from './utils/dns-router';
 import { listProviders } from './providers';
+import { isDirectForwardingLoop, resolveManagementCredentials, toServerHostname } from './utils/shared';
 
-function getCreds(): DACredentials {
+function getCreds(): ManagementCredentials {
   const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
+  const credentials = resolveManagementCredentials(config);
+  if (!credentials) {
     throw new Error('Not authenticated. Run "mxroute auth login" first.');
   }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
+  return credentials;
 }
 
 const pkg = require('../package.json');
@@ -94,7 +96,7 @@ server.tool(
     const aliases = Object.keys(pointers).filter((k) => k !== 'error' && k !== 'text');
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ domain, aliases, server: `${creds.server}.mxrouting.net` }, null, 2) },
+        { type: 'text', text: JSON.stringify({ domain, aliases, server: toServerHostname(creds.server) }, null, 2) },
       ],
     };
   },
@@ -311,7 +313,7 @@ server.tool(
 
 server.tool(
   'list_autoresponders',
-  'List autoresponders for a domain',
+  'List autoresponders for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
   },
@@ -324,7 +326,7 @@ server.tool(
 
 server.tool(
   'create_autoresponder',
-  'Create an autoresponder / vacation message',
+  'Create an autoresponder / vacation message (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -352,7 +354,7 @@ server.tool(
 
 server.tool(
   'delete_autoresponder',
-  'Delete an autoresponder',
+  'Delete an autoresponder (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -426,7 +428,7 @@ server.tool(
 
 server.tool(
   'get_spam_config',
-  'Get SpamAssassin configuration for a domain',
+  'Get SpamAssassin configuration for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
   },
@@ -439,12 +441,12 @@ server.tool(
 
 server.tool(
   'set_spam_config',
-  'Configure SpamAssassin for a domain',
+  'Configure SpamAssassin for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     enabled: z.boolean().optional().describe('Enable or disable SpamAssassin'),
     required_score: z.string().optional().describe('Score threshold (1-10, lower = more aggressive)'),
-    where: z.string().optional().describe('Where to put spam: "userspamfolder", "inbox", or "delete"'),
+    where: z.enum(['inbox', 'delete']).optional().describe('Where to put spam'),
   },
   async ({ domain, enabled, required_score, where }) => {
     const creds = getCreds();
@@ -590,44 +592,31 @@ server.tool(
 
 server.tool(
   'list_email_filters',
-  'List email filters for an account',
+  'List domain-wide email block filters (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
-    username: z.string().describe('Email username (before the @)'),
   },
-  async ({ domain, username }) => {
+  async ({ domain }) => {
     const creds = getCreds();
-    const filters = await listEmailFilters(creds, domain, username);
+    const filters = await listEmailFilters(creds, domain);
     return {
-      content: [{ type: 'text', text: JSON.stringify({ account: `${username}@${domain}`, filters }, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify({ domain, filters }, null, 2) }],
     };
   },
 );
 
 server.tool(
   'create_email_filter',
-  'Create an email filter rule',
+  'Create a domain-wide email block filter (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
-    username: z.string().describe('Email username (before the @)'),
-    name: z.string().describe('Filter name'),
-    field: z.string().describe('Field to match: from, to, subject, body'),
-    match: z.string().describe('Match type: contains, equals, startswith, endswith'),
-    value: z.string().describe('Value to match against'),
-    action: z.string().describe('Action: discard, forward, move'),
-    destination: z.string().optional().describe('Destination (email for forward, folder for move)'),
+    type: z.enum(['email', 'domain', 'word', 'size']).describe('Value type to block'),
+    value: z.string().describe('Email address, domain, word, or message size to block'),
   },
-  async ({ domain, username, name, field, match, value, action, destination }) => {
+  async ({ domain, type, value }) => {
     const creds = getCreds();
-    const result = await createEmailFilter(creds, domain, username, {
-      name,
-      field,
-      match,
-      value,
-      action,
-      destination: destination || '',
-    });
-    const success = !result.error || result.error === '0';
+    const result = await createEmailFilter(creds, domain, type, value);
+    const success = !!result.success || result.error === '0';
     return {
       content: [
         {
@@ -641,16 +630,15 @@ server.tool(
 
 server.tool(
   'delete_email_filter',
-  'Delete an email filter',
+  'Delete an email filter (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
-    username: z.string().describe('Email username (before the @)'),
-    filterName: z.string().describe('Name of the filter to delete'),
+    filterId: z.string().describe('DirectAdmin filter ID'),
   },
-  async ({ domain, username, filterName }) => {
+  async ({ domain, filterId }) => {
     const creds = getCreds();
-    const result = await deleteEmailFilter(creds, domain, username, filterName);
-    const success = !result.error || result.error === '0';
+    const result = await deleteEmailFilter(creds, domain, filterId);
+    const success = !!result.success || result.error === '0';
     return {
       content: [
         {
@@ -666,7 +654,7 @@ server.tool(
 
 server.tool(
   'list_mailing_lists',
-  'List mailing lists for a domain',
+  'List mailing lists for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
   },
@@ -679,7 +667,7 @@ server.tool(
 
 server.tool(
   'create_mailing_list',
-  'Create a mailing list',
+  'Create a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -705,7 +693,7 @@ server.tool(
 
 server.tool(
   'delete_mailing_list',
-  'Delete a mailing list',
+  'Delete a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -727,7 +715,7 @@ server.tool(
 
 server.tool(
   'list_mailing_list_members',
-  'Show members of a mailing list',
+  'Show members of a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -741,7 +729,7 @@ server.tool(
 
 server.tool(
   'add_mailing_list_member',
-  'Add member to a mailing list',
+  'Add member to a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -764,7 +752,7 @@ server.tool(
 
 server.tool(
   'remove_mailing_list_member',
-  'Remove member from a mailing list',
+  'Remove member from a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -1757,7 +1745,7 @@ server.tool(
         for (const fwd of forwarders) {
           try {
             const dest = await getForwarderDestination(creds, domain, fwd);
-            if (dest.includes(`@${domain}`)) {
+            if (isDirectForwardingLoop(`${fwd}@${domain}`, dest)) {
               results.push({ domain, check: 'Forwarding Loop', status: 'warn', message: `${fwd}@${domain} → ${dest}` });
               score -= 3;
             }
@@ -2311,22 +2299,21 @@ server.tool(
       message: config.username || 'Not configured',
     });
 
-    // DirectAdmin API
-    if (config.daUsername && config.daLoginKey) {
+    // Management API
+    const managementCredentials = resolveManagementCredentials(config);
+    if (managementCredentials) {
       try {
-        const result = await testAuth({
-          server: config.server,
-          username: config.daUsername,
-          loginKey: config.daLoginKey,
-        });
+        const result = await testAuth(managementCredentials);
+        const backendLabel = config.managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin Auth';
+        const managementUsername = config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername;
         checks.push({
           category: 'API',
-          check: 'DirectAdmin Auth',
+          check: backendLabel,
           status: result.success ? 'pass' : 'fail',
-          message: result.success ? `Authenticated as ${config.daUsername}` : result.message || 'Auth failed',
+          message: result.success ? `Authenticated as ${managementUsername}` : result.message || 'Auth failed',
         });
       } catch (err: any) {
-        checks.push({ category: 'API', check: 'DirectAdmin Auth', status: 'fail', message: err.message });
+        checks.push({ category: 'API', check: 'Management Auth', status: 'fail', message: err.message });
       }
 
       // DNS for all domains
@@ -2767,7 +2754,7 @@ server.tool(
 
 server.tool(
   'self_service_password',
-  'Change an email account password. Requires the domain, username, and new password. Uses DirectAdmin API.',
+  'Change an email account password. Requires the domain, username, and new password. Uses the configured management backend.',
   {
     domain: z.string().describe('Domain (e.g. example.com)'),
     username: z.string().describe('Username part before @'),

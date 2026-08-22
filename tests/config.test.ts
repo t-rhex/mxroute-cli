@@ -37,6 +37,10 @@ describe('Config Module', () => {
     expect(config).toHaveProperty('activeProfile');
     expect(config).toHaveProperty('daUsername');
     expect(config).toHaveProperty('daLoginKey');
+    expect(config).toHaveProperty('managementBackend');
+    expect(config).toHaveProperty('apiServer');
+    expect(config).toHaveProperty('apiUsername');
+    expect(config).toHaveProperty('apiKey');
   });
 
   it('should return config path as string', () => {

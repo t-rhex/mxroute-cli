@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { theme } from '../utils/theme';
-import { listDomains, listEmailAccounts } from '../utils/directadmin';
+import { listDomains, listEmailAccounts } from '../utils/management';
 import { getCreds } from '../utils/shared';
 
 export async function accountsSearch(query?: string): Promise<void> {

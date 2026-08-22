@@ -4,16 +4,18 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { runFullDnsCheck } from '../utils/dns';
-import { testAuth } from '../utils/directadmin';
+import { testAuth } from '../utils/management';
 import { testConnection } from '../utils/api';
+import { resolveManagementCredentials } from '../utils/shared';
 
 export async function statusCommand(): Promise<void> {
   const config = getConfig();
+  const managementCredentials = resolveManagementCredentials(config);
 
   console.log(theme.banner());
 
   // Not configured at all
-  if (!config.server && !config.daUsername) {
+  if (!config.server && !managementCredentials) {
     console.log(theme.warning(`  ${theme.statusIcon('warn')} Not configured yet.\n`));
     console.log(theme.subheading('Quick Start:'));
     console.log(theme.muted('    1. mxroute config setup     Configure your account (API key + server)'));
@@ -53,36 +55,28 @@ export async function statusCommand(): Promise<void> {
 
   // Auth status
   console.log(theme.subheading('Authentication'));
-  if (config.daUsername && config.daLoginKey) {
+  if (managementCredentials) {
     const spinner = ora({ text: 'Verifying API credentials...', spinner: 'dots12', color: 'cyan' }).start();
     try {
-      const result = await testAuth({
-        server: config.server,
-        username: config.daUsername,
-        loginKey: config.daLoginKey,
-      });
+      const result = await testAuth(managementCredentials);
+      const backendLabel = config.managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin API';
+      const managementUsername = config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername;
       if (result.success) {
         spinner.stop();
         console.log(
-          `    ${theme.statusIcon('pass')} ${theme.success('DirectAdmin API')}  ${theme.muted(`authenticated as ${config.daUsername}`)}`,
+          `    ${theme.statusIcon('pass')} ${theme.success(backendLabel)}  ${theme.muted(`authenticated as ${managementUsername}`)}`,
         );
       } else {
         spinner.stop();
-        console.log(
-          `    ${theme.statusIcon('fail')} ${theme.error('DirectAdmin API')}  ${theme.muted(result.message)}`,
-        );
+        console.log(`    ${theme.statusIcon('fail')} ${theme.error(backendLabel)}  ${theme.muted(result.message)}`);
       }
     } catch (err: any) {
       spinner.stop();
-      console.log(`    ${theme.statusIcon('fail')} ${theme.error('DirectAdmin API')}  ${theme.muted(err.message)}`);
+      console.log(`    ${theme.statusIcon('fail')} ${theme.error('Management API')}  ${theme.muted(err.message)}`);
     }
   } else {
-    console.log(
-      `    ${theme.statusIcon('warn')} ${theme.warning('DirectAdmin API')}  ${theme.muted('not configured')}`,
-    );
-    console.log(
-      theme.muted(`           Run ${theme.bold('mxroute config setup')} to authenticate with your Login Key`),
-    );
+    console.log(`    ${theme.statusIcon('warn')} ${theme.warning('Management API')}  ${theme.muted('not configured')}`);
+    console.log(theme.muted(`           Run ${theme.bold('mxroute config setup')} to authenticate with an API key`));
   }
 
   if (config.username && config.password) {
