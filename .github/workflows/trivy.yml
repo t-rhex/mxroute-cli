@@ -1,0 +1,54 @@
+name: Trivy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 10 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    name: Security scan
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Generate SARIF report
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          exit-code: '0'
+          timeout: 10m0s
+
+      - name: Upload results to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Fail on fixable high or critical findings
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          skip-setup-trivy: true
+          timeout: 10m0s
