@@ -317,7 +317,9 @@ export function createMXrouteApiClient(
       return response.data || {};
     },
     async getQuota(): Promise<MXrouteQuota> {
-      return request<MXrouteQuota>('GET', '/quota');
+      const response = await request<MXrouteQuota | ApiEnvelope<MXrouteQuota>>('GET', '/quota');
+      const envelope = response as ApiEnvelope<MXrouteQuota>;
+      return envelope.data || (response as MXrouteQuota);
     },
   };
 }

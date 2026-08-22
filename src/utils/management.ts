@@ -211,7 +211,7 @@ export function createManagementClient(credentials: ManagementCredentials, adapt
           emailAccounts += domainAccounts.length;
           forwarders += domainForwarders.length;
         }
-        const usedMb = (quota.total_used || 0) / 1024 / 1024;
+        const usedMb = Math.round(((quota.total_used || 0) / 1024 / 1024) * 100) / 100;
         return {
           quota: usedMb,
           disk: usedMb,
@@ -229,7 +229,7 @@ export function createManagementClient(credentials: ManagementCredentials, adapt
     async getUserConfig(): Promise<any> {
       if (api) {
         const quota = await api.getQuota!();
-        const limitMb = (quota.total_limit || 0) / 1024 / 1024;
+        const limitMb = Math.round(((quota.total_limit || 0) / 1024 / 1024) * 100) / 100;
         return {
           quota: limitMb,
           disk: limitMb,

@@ -182,6 +182,30 @@ describe('MXroute API client', () => {
     await expect(client.getQuota()).resolves.toEqual({ total_used: 1024, total_limit: 2048, percent_used: 50 });
   });
 
+  it('unwraps the quota envelope returned by the live API', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      text: async () =>
+        JSON.stringify({
+          success: true,
+          data: { total_used: 12_365_824, total_limit: 107_374_182_400, percent_used: 0.0115 },
+        }),
+    });
+    const { createMXrouteApiClient } = require('../dist/utils/mxroute-api');
+    const client = createMXrouteApiClient(
+      { server: 'fusion.mxrouting.net', username: 'owner', apiKey: 'Mx_test' },
+      { fetch },
+    );
+
+    await expect(client.getQuota()).resolves.toEqual({
+      total_used: 12_365_824,
+      total_limit: 107_374_182_400,
+      percent_used: 0.0115,
+    });
+  });
+
   it('retries rate-limited reads using Retry-After', async () => {
     const fetch = vi
       .fn()
