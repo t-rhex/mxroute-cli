@@ -1,3 +1,13 @@
+## [1.3.0](https://github.com/t-rhex/mxroute-cli/compare/v1.2.3...v1.3.0) (2026-08-22)
+
+### Features
+
+* add current MXroute API management backend ([add2ae7](https://github.com/t-rhex/mxroute-cli/commit/add2ae77d9386cfc4917bb508f9742394661a4bd))
+
+### Bug Fixes
+
+* align filters and live diagnostics ([078515e](https://github.com/t-rhex/mxroute-cli/commit/078515e9dfb2871d78bcae1ae53f93a903bf68c7))
+* handle live quota response envelope ([d5451d1](https://github.com/t-rhex/mxroute-cli/commit/d5451d1e4a47afae5a4ece49afa4a6c534c54f00))
 ## [1.2.3](https://github.com/t-rhex/mxroute-cli/compare/v1.2.2...v1.2.3) (2026-03-16)
 
 ### Features
