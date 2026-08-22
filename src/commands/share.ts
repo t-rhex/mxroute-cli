@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { getCreds, pickDomain, validateEmail } from '../utils/shared';
-import { listEmailAccounts } from '../utils/directadmin';
+import { getCreds, pickDomain, resolveManagementCredentials, validateEmail } from '../utils/shared';
+import { listEmailAccounts } from '../utils/management';
 
 function escapeHtml(str: string): string {
   return str
@@ -25,7 +25,7 @@ export async function shareCommand(email?: string): Promise<void> {
 
   // If no email specified, pick from accounts
   if (!email) {
-    if (config.daUsername && config.daLoginKey) {
+    if (resolveManagementCredentials(config)) {
       const creds = getCreds();
       const domain = await pickDomain(creds);
       const accounts = await listEmailAccounts(creds, domain);

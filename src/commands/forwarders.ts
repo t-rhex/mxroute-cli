@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { listForwarders, getForwarderDestination, createForwarder, deleteForwarder } from '../utils/directadmin';
+import { listForwarders, getForwarderDestination, createForwarder, deleteForwarder } from '../utils/management';
 import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 import { logActivity } from '../utils/activity-log';

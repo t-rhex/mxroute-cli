@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { theme } from '../utils/theme';
-import { listEmailAccounts } from '../utils/directadmin';
+import { listEmailAccounts } from '../utils/management';
 import { getCreds, pickDomain } from '../utils/shared';
 import { getConfig } from '../utils/config';
 

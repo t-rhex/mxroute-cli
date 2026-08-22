@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import * as dns from 'dns';
 import { theme } from '../utils/theme';
+import { getConfig } from '../utils/config';
 import {
   listDomains,
   listEmailAccounts,
@@ -9,7 +10,7 @@ import {
   getForwarderDestination,
   listAutoresponders,
   getCatchAll,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { getCreds } from '../utils/shared';
 
 interface CleanupIssue {
@@ -31,6 +32,8 @@ function resolveMx(domain: string): Promise<dns.MxRecord[]> {
 
 export async function cleanupCommand(): Promise<void> {
   const creds = getCreds();
+  const config = getConfig();
+  const legacyAvailable = !!(config.daUsername && config.daLoginKey);
 
   console.log(theme.heading('Account Cleanup Scan'));
   console.log(theme.muted('  Scanning for unused accounts, orphaned forwarders, and redundant configs...\n'));
@@ -61,10 +64,12 @@ export async function cleanupCommand(): Promise<void> {
         /* skip */
       }
 
-      try {
-        autoresponders = await listAutoresponders(creds, domain);
-      } catch {
-        /* skip */
+      if (legacyAvailable) {
+        try {
+          autoresponders = await listAutoresponders(creds, domain);
+        } catch {
+          /* skip */
+        }
       }
 
       // Check for forwarders pointing to non-existent local accounts
@@ -168,6 +173,14 @@ export async function cleanupCommand(): Promise<void> {
     }
 
     spinner.stop();
+
+    if (!legacyAvailable) {
+      console.log(
+        theme.warning(
+          `  ${theme.statusIcon('warn')} Autoresponder cleanup was not checked (legacy DirectAdmin credentials required).\n`,
+        ),
+      );
+    }
 
     if (issues.length === 0) {
       console.log(

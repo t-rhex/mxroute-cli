@@ -10,7 +10,7 @@ import {
   modifyAutoresponder,
   deleteAutoresponder,
   listEmailAccounts,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 import { snapshotBeforeDelete } from '../utils/auto-backup';

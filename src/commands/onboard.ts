@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { getCreds, validateDomain } from '../utils/shared';
-import { listDomains, createEmailAccount, listEmailAccounts, getDkimKey } from '../utils/directadmin';
+import { listDomains, createEmailAccount, listEmailAccounts, getDkimKey } from '../utils/management';
 import { getProvider, generateMxrouteRecords, RegistrarConfig } from '../utils/registrars';
 import { runFullDnsCheck } from '../utils/dns';
 

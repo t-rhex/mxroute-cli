@@ -3,7 +3,7 @@ import ora from 'ora';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { listDomains, listDomainPointers } from '../utils/directadmin';
+import { listDomains, listDomainPointers } from '../utils/management';
 import { getCreds, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 

@@ -1,14 +1,15 @@
 import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { getCreds } from '../utils/shared';
-import { listDomains, getQuotaUsage } from '../utils/directadmin';
+import { getCreds, resolveManagementCredentials } from '../utils/shared';
+import { listDomains, getQuotaUsage } from '../utils/management';
 import { isJsonMode, output } from '../utils/json-output';
 
 export async function whoamiCommand(): Promise<void> {
   const config = getConfig();
+  const managementCredentials = resolveManagementCredentials(config);
 
-  if (!config.server && !config.daUsername) {
+  if (!config.server && !managementCredentials) {
     console.log(
       theme.error(`\n  ${theme.statusIcon('fail')} Not configured. Run ${theme.bold('mxroute config setup')}\n`),
     );
@@ -21,8 +22,9 @@ export async function whoamiCommand(): Promise<void> {
     console.log(theme.keyValue('Profile', config.activeProfile));
   }
 
-  if (config.daUsername && config.daLoginKey) {
-    if (!isJsonMode()) console.log(theme.keyValue('DA User', config.daUsername));
+  if (managementCredentials) {
+    const managementUsername = config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername;
+    if (!isJsonMode()) console.log(theme.keyValue('API User', managementUsername));
 
     const spinner = isJsonMode()
       ? null
@@ -35,7 +37,8 @@ export async function whoamiCommand(): Promise<void> {
       if (isJsonMode()) {
         output('server', config.server ? `${config.server}.mxrouting.net` : null);
         output('profile', config.activeProfile);
-        output('daUser', config.daUsername);
+        output('daUser', managementUsername);
+        output('managementBackend', config.managementBackend);
         output('domains', domains);
         output('diskUsed', `${usage.quota || usage.disk || '?'} MB`);
         if (config.username) {

@@ -3,14 +3,16 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig, setConfig } from '../utils/config';
-import { testAuth } from '../utils/directadmin';
+import { testAuth } from '../utils/management';
+import { resolveManagementCredentials } from '../utils/shared';
 
 export async function authStatus(): Promise<void> {
   const config = getConfig();
+  const credentials = resolveManagementCredentials(config);
 
   console.log(theme.heading('Authentication Status'));
 
-  if (!config.daUsername || !config.daLoginKey) {
+  if (!credentials) {
     console.log(
       theme.warning(
         `  ${theme.statusIcon('warn')} Not authenticated. Run ${theme.bold('mxroute auth login')} to connect.\n`,
@@ -22,9 +24,23 @@ export async function authStatus(): Promise<void> {
   console.log(
     theme.box(
       [
-        theme.keyValue('Server', `${config.server}.mxrouting.net:2222`, 0),
-        theme.keyValue('Username', config.daUsername, 0),
-        theme.keyValue('Login Key', '••••••••', 0),
+        theme.keyValue(
+          'Backend',
+          config.managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin (legacy)',
+          0,
+        ),
+        theme.keyValue(
+          'Server',
+          config.managementBackend === 'mxroute-api' ? config.apiServer : `${config.server}.mxrouting.net:2222`,
+          0,
+        ),
+        theme.keyValue(
+          'Username',
+          config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername,
+          0,
+        ),
+        theme.keyValue('API Key', '••••••••', 0),
+        theme.keyValue('Legacy DirectAdmin', config.daLoginKey ? 'configured' : 'not configured', 0),
       ].join('\n'),
       'Stored Credentials',
     ),
@@ -38,11 +54,7 @@ export async function authStatus(): Promise<void> {
   }).start();
 
   try {
-    const result = await testAuth({
-      server: config.server,
-      username: config.daUsername,
-      loginKey: config.daLoginKey,
-    });
+    const result = await testAuth(credentials);
 
     if (result.success) {
       spinner.succeed(chalk.green('Credentials are valid'));
@@ -59,7 +71,7 @@ export async function authStatus(): Promise<void> {
 export async function authLogout(): Promise<void> {
   const config = getConfig();
 
-  if (!config.daUsername && !config.daLoginKey) {
+  if (!resolveManagementCredentials(config) && !config.daLoginKey) {
     console.log(theme.muted('\n  No credentials stored.\n'));
     return;
   }
@@ -74,6 +86,10 @@ export async function authLogout(): Promise<void> {
   ]);
 
   if (confirm) {
+    setConfig('managementBackend', 'directadmin');
+    setConfig('apiServer', '');
+    setConfig('apiUsername', '');
+    setConfig('apiKey', '');
     setConfig('daUsername', '');
     setConfig('daLoginKey', '');
     console.log(theme.success(`\n  ${theme.statusIcon('pass')} Credentials removed.\n`));

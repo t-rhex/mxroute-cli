@@ -1,4 +1,5 @@
 import { getConfig, setConfig, getProfiles } from './config';
+import { resolveManagementCredentials } from './shared';
 
 export interface SendingAccount {
   email: string;
@@ -55,18 +56,18 @@ export async function getSendingAccount(): Promise<SendingAccount> {
 
   let email: string;
 
-  // If DA API is configured, list accounts and let user pick
-  if (config.daUsername && config.daLoginKey) {
+  // If a management backend is configured, list accounts and let user pick
+  const managementCredentials = resolveManagementCredentials(config);
+  if (managementCredentials) {
     try {
-      const { listDomains, listEmailAccounts } = await import('./directadmin');
+      const { listDomains, listEmailAccounts } = await import('./management');
       const ora = (await import('ora')).default;
       const spinner = ora({ text: 'Fetching your email accounts...', spinner: 'dots12', color: 'cyan' }).start();
 
-      const creds = { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
-      const domains = await listDomains(creds);
+      const domains = await listDomains(managementCredentials);
       const allAccounts: string[] = [];
       for (const domain of domains) {
-        const accounts = await listEmailAccounts(creds, domain);
+        const accounts = await listEmailAccounts(managementCredentials, domain);
         allAccounts.push(...accounts.map((a) => `${a}@${domain}`));
       }
       spinner.stop();

@@ -182,6 +182,9 @@ export async function getForwarderDestination(creds: DACredentials, domain: stri
   );
   if (typeof result === 'string') return result;
   if (result.dest) return result.dest;
+  const destinations = result[user];
+  if (Array.isArray(destinations)) return destinations.join(',');
+  if (typeof destinations === 'string') return destinations;
   return JSON.stringify(result);
 }
 

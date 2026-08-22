@@ -3,8 +3,8 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig, setConfig } from '../utils/config';
-import { getCreds } from '../utils/shared';
-import { getDkimKey } from '../utils/directadmin';
+import { getCreds, resolveManagementCredentials } from '../utils/shared';
+import { getDkimKey } from '../utils/management';
 import { listProviders, getProvider, ProviderCredentials } from '../providers';
 import { generateMxrouteRecords } from '../providers/mxroute-records';
 
@@ -114,9 +114,9 @@ export async function dnsSetup(domain?: string): Promise<void> {
     console.log(theme.muted(`  Saved to ${require('../utils/config').getConfigPath()}\n`));
   }
 
-  // Step 3: Fetch DKIM key from DirectAdmin
+  // Step 3: Fetch the DKIM key from the configured management backend
   let dkimKey: string | null = null;
-  if (config.daUsername && config.daLoginKey) {
+  if (resolveManagementCredentials(config)) {
     const dkimSpinner = ora({ text: 'Fetching DKIM key from MXroute...', spinner: 'dots12', color: 'cyan' }).start();
     try {
       const daCreds = getCreds();
@@ -132,7 +132,7 @@ export async function dnsSetup(domain?: string): Promise<void> {
   } else {
     console.log(
       theme.warning(
-        `\n  ${theme.statusIcon('warn')} Not authenticated with DirectAdmin \u2014 DKIM record will be skipped.`,
+        `\n  ${theme.statusIcon('warn')} Management API authentication is unavailable \u2014 DKIM will be skipped.`,
       ),
     );
     console.log(theme.muted(`  Run ${theme.bold('mxroute config setup')} to authenticate, then re-run dns setup.\n`));

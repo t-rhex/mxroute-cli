@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { listDomainPointers, addDomainPointer, deleteDomainPointer } from '../utils/directadmin';
+import { listDomainPointers, addDomainPointer, deleteDomainPointer } from '../utils/management';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 

@@ -5,7 +5,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getCreds, pickDomain } from '../utils/shared';
-import { listEmailAccounts, changeEmailQuota } from '../utils/directadmin';
+import { listEmailAccounts, changeEmailQuota } from '../utils/management';
 
 interface PolicyRule {
   pattern: string;

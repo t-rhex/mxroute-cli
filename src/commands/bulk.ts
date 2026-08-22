@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getCreds, pickDomain } from '../utils/shared';
-import { createEmailAccount, createForwarder } from '../utils/directadmin';
+import { createEmailAccount, createForwarder } from '../utils/management';
 
 interface CsvRow {
   [key: string]: string;

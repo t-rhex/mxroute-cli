@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { sendEmail } from '../utils/api';
 import { getCreds, pickDomain } from '../utils/shared';
-import { listEmailAccounts } from '../utils/directadmin';
+import { listEmailAccounts } from '../utils/management';
 import { getSendingAccount, getSendingAccountSync } from '../utils/sending-account';
 
 interface WelcomeResult {

@@ -2,8 +2,8 @@ import ora from 'ora';
 import { theme } from '../utils/theme';
 import { getConfig, setConfig } from '../utils/config';
 import { listProviders, detectProvider } from '../providers';
-import { listDomains } from '../utils/directadmin';
-import { getCreds } from '../utils/shared';
+import { listDomains } from '../utils/management';
+import { getCreds, resolveManagementCredentials } from '../utils/shared';
 import { Resolver } from 'dns';
 import { promisify } from 'util';
 
@@ -32,7 +32,7 @@ export async function dnsProvidersCommand(): Promise<void> {
   }
 
   // Show domain → provider mapping if authenticated
-  if (config.daUsername && config.daLoginKey) {
+  if (resolveManagementCredentials(config)) {
     console.log('');
     console.log(theme.subheading('Your domains'));
     const spinner = ora({ text: 'Detecting providers...', spinner: 'dots12', color: 'cyan' }).start();

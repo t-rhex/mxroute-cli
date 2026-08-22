@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { listEmailAccounts, listEmailFilters, createEmailFilter, deleteEmailFilter } from '../utils/directadmin';
+import { listEmailAccounts, listEmailFilters, createEmailFilter, deleteEmailFilter } from '../utils/management';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 
 export async function filtersList(domain?: string): Promise<void> {

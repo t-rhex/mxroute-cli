@@ -8,7 +8,7 @@ import {
   listForwarders,
   getForwarderDestination,
   getCatchAll,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from '../utils/dns';
 import { isJsonMode, output } from '../utils/json-output';
 

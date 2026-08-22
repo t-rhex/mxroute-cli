@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { listDomains, listDomainPointers, addDomainPointer } from '../utils/directadmin';
+import { listDomains, listDomainPointers, addDomainPointer } from '../utils/management';
 import { getConfig, getProfiles } from '../utils/config';
 
 export async function aliasesSyncCommand(): Promise<void> {
@@ -47,11 +47,11 @@ export async function aliasesSyncCommand(): Promise<void> {
     return;
   }
 
-  // We need DA credentials for both — check config
+  // Cross-profile sync remains a legacy DirectAdmin-only operation.
   if (!config.daUsername || !config.daLoginKey) {
     console.log(
       theme.error(
-        `\n  ${theme.statusIcon('fail')} DirectAdmin credentials required. Run ${theme.bold('mxroute config setup')} first.\n`,
+        `\n  ${theme.statusIcon('fail')} Legacy DirectAdmin credentials are required for cross-profile sync.\n`,
       ),
     );
     return;

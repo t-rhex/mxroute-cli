@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
-import { changeEmailPassword } from '../utils/directadmin';
+import { changeEmailPassword } from '../utils/management';
 import { getCreds } from '../utils/shared';
 import { ImapClient } from '../utils/imap';
 

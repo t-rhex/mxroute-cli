@@ -10,7 +10,7 @@ import {
   deleteMailingList,
   addMailingListMember,
   removeMailingListMember,
-} from '../utils/directadmin';
+} from '../utils/management';
 import { getCreds, pickDomain, tableChars, validateEmail } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 

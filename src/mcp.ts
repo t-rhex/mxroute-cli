@@ -15,7 +15,7 @@ import { sendEmail } from './utils/api';
 import { ImapClient } from './utils/imap';
 import { parseMessage, htmlToText, formatFileSize } from './utils/mime';
 import {
-  DACredentials,
+  ManagementCredentials,
   listDomains,
   listEmailAccounts,
   createEmailAccount,
@@ -49,18 +49,20 @@ import {
   deleteDomainPointer,
   getQuotaUsage,
   getUserConfig,
-} from './utils/directadmin';
+} from './utils/management';
 import { runFullDnsCheck, checkSpfRecord, checkDkimRecord, checkDmarcRecord, checkMxRecords } from './utils/dns';
-import { testAuth } from './utils/directadmin';
+import { testAuth } from './utils/management';
 import { routeDnsAdd, routeDnsDelete } from './utils/dns-router';
 import { listProviders } from './providers';
+import { resolveManagementCredentials } from './utils/shared';
 
-function getCreds(): DACredentials {
+function getCreds(): ManagementCredentials {
   const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
+  const credentials = resolveManagementCredentials(config);
+  if (!credentials) {
     throw new Error('Not authenticated. Run "mxroute auth login" first.');
   }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
+  return credentials;
 }
 
 const pkg = require('../package.json');
@@ -311,7 +313,7 @@ server.tool(
 
 server.tool(
   'list_autoresponders',
-  'List autoresponders for a domain',
+  'List autoresponders for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
   },
@@ -324,7 +326,7 @@ server.tool(
 
 server.tool(
   'create_autoresponder',
-  'Create an autoresponder / vacation message',
+  'Create an autoresponder / vacation message (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -352,7 +354,7 @@ server.tool(
 
 server.tool(
   'delete_autoresponder',
-  'Delete an autoresponder',
+  'Delete an autoresponder (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -426,7 +428,7 @@ server.tool(
 
 server.tool(
   'get_spam_config',
-  'Get SpamAssassin configuration for a domain',
+  'Get SpamAssassin configuration for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
   },
@@ -439,12 +441,12 @@ server.tool(
 
 server.tool(
   'set_spam_config',
-  'Configure SpamAssassin for a domain',
+  'Configure SpamAssassin for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     enabled: z.boolean().optional().describe('Enable or disable SpamAssassin'),
     required_score: z.string().optional().describe('Score threshold (1-10, lower = more aggressive)'),
-    where: z.string().optional().describe('Where to put spam: "userspamfolder", "inbox", or "delete"'),
+    where: z.enum(['inbox', 'delete']).optional().describe('Where to put spam'),
   },
   async ({ domain, enabled, required_score, where }) => {
     const creds = getCreds();
@@ -590,7 +592,7 @@ server.tool(
 
 server.tool(
   'list_email_filters',
-  'List email filters for an account',
+  'List email filters for an account (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -606,7 +608,7 @@ server.tool(
 
 server.tool(
   'create_email_filter',
-  'Create an email filter rule',
+  'Create an email filter rule (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -641,7 +643,7 @@ server.tool(
 
 server.tool(
   'delete_email_filter',
-  'Delete an email filter',
+  'Delete an email filter (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     username: z.string().describe('Email username (before the @)'),
@@ -666,7 +668,7 @@ server.tool(
 
 server.tool(
   'list_mailing_lists',
-  'List mailing lists for a domain',
+  'List mailing lists for a domain (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
   },
@@ -679,7 +681,7 @@ server.tool(
 
 server.tool(
   'create_mailing_list',
-  'Create a mailing list',
+  'Create a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -705,7 +707,7 @@ server.tool(
 
 server.tool(
   'delete_mailing_list',
-  'Delete a mailing list',
+  'Delete a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -727,7 +729,7 @@ server.tool(
 
 server.tool(
   'list_mailing_list_members',
-  'Show members of a mailing list',
+  'Show members of a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -741,7 +743,7 @@ server.tool(
 
 server.tool(
   'add_mailing_list_member',
-  'Add member to a mailing list',
+  'Add member to a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -764,7 +766,7 @@ server.tool(
 
 server.tool(
   'remove_mailing_list_member',
-  'Remove member from a mailing list',
+  'Remove member from a mailing list (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
     name: z.string().describe('List name'),
@@ -2311,22 +2313,21 @@ server.tool(
       message: config.username || 'Not configured',
     });
 
-    // DirectAdmin API
-    if (config.daUsername && config.daLoginKey) {
+    // Management API
+    const managementCredentials = resolveManagementCredentials(config);
+    if (managementCredentials) {
       try {
-        const result = await testAuth({
-          server: config.server,
-          username: config.daUsername,
-          loginKey: config.daLoginKey,
-        });
+        const result = await testAuth(managementCredentials);
+        const backendLabel = config.managementBackend === 'mxroute-api' ? 'MXroute API' : 'DirectAdmin Auth';
+        const managementUsername = config.managementBackend === 'mxroute-api' ? config.apiUsername : config.daUsername;
         checks.push({
           category: 'API',
-          check: 'DirectAdmin Auth',
+          check: backendLabel,
           status: result.success ? 'pass' : 'fail',
-          message: result.success ? `Authenticated as ${config.daUsername}` : result.message || 'Auth failed',
+          message: result.success ? `Authenticated as ${managementUsername}` : result.message || 'Auth failed',
         });
       } catch (err: any) {
-        checks.push({ category: 'API', check: 'DirectAdmin Auth', status: 'fail', message: err.message });
+        checks.push({ category: 'API', check: 'Management Auth', status: 'fail', message: err.message });
       }
 
       // DNS for all domains
@@ -2767,7 +2768,7 @@ server.tool(
 
 server.tool(
   'self_service_password',
-  'Change an email account password. Requires the domain, username, and new password. Uses DirectAdmin API.',
+  'Change an email account password. Requires the domain, username, and new password. Uses the configured management backend.',
   {
     domain: z.string().describe('Domain (e.g. example.com)'),
     username: z.string().describe('Username part before @'),

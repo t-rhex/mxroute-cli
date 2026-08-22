@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import * as crypto from 'crypto';
 import { theme } from '../utils/theme';
-import { listDomains, listEmailAccounts, changeEmailPassword } from '../utils/directadmin';
+import { listDomains, listEmailAccounts, changeEmailPassword } from '../utils/management';
 import { getCreds } from '../utils/shared';
 
 const COMMON_PASSWORDS = [

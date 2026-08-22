@@ -3,7 +3,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import * as path from 'path';
 import { theme } from '../utils/theme';
-import { getQuotaUsage, getUserConfig } from '../utils/directadmin';
+import { getQuotaUsage, getUserConfig } from '../utils/management';
 import { getCreds } from '../utils/shared';
 import { getConfigPath } from '../utils/config';
 import { isJsonMode, output } from '../utils/json-output';

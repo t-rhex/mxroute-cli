@@ -5,6 +5,7 @@ import { theme } from '../utils/theme';
 import { getConfig } from '../utils/config';
 import { runFullDnsCheck } from '../utils/dns';
 import { isJsonMode, output, outputError } from '../utils/json-output';
+import { getCreds, resolveManagementCredentials } from '../utils/shared';
 
 export async function dnsCheck(domain?: string): Promise<void> {
   const config = getConfig();
@@ -145,13 +146,10 @@ export async function dnsRecords(domain?: string): Promise<void> {
 
   // Try to fetch real DKIM key
   let dkimValue = '';
-  if (config.daUsername && config.daLoginKey) {
+  if (resolveManagementCredentials(config)) {
     try {
-      const { getDkimKey } = await import('../utils/directadmin');
-      const key = await getDkimKey(
-        { server: config.server, username: config.daUsername, loginKey: config.daLoginKey },
-        targetDomain!,
-      );
+      const { getDkimKey } = await import('../utils/management');
+      const key = await getDkimKey(getCreds(), targetDomain!);
       if (key) dkimValue = key;
     } catch {
       /* skip */

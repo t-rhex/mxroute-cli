@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import * as dns from 'dns';
 import { theme } from '../utils/theme';
-import { listForwarders, getForwarderDestination } from '../utils/directadmin';
+import { listForwarders, getForwarderDestination } from '../utils/management';
 import { getCreds, pickDomain } from '../utils/shared';
 
 function resolveMx(domain: string): Promise<dns.MxRecord[]> {

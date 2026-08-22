@@ -15,7 +15,7 @@ import {
   createForwarder,
   createAutoresponder,
   setCatchAll,
-} from '../utils/directadmin';
+} from '../utils/management';
 
 interface ExportData {
   version: string;

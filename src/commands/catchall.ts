@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from '../utils/theme';
-import { getCatchAll, setCatchAll, listEmailAccounts } from '../utils/directadmin';
+import { getCatchAll, setCatchAll, listEmailAccounts } from '../utils/management';
 import { getCreds, pickDomain, validateEmail } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 import { logActivity } from '../utils/activity-log';

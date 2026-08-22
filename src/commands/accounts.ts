@@ -3,7 +3,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import Table from 'cli-table3';
 import { theme } from '../utils/theme';
-import { listEmailAccounts, createEmailAccount, deleteEmailAccount, changeEmailPassword } from '../utils/directadmin';
+import { listEmailAccounts, createEmailAccount, deleteEmailAccount, changeEmailPassword } from '../utils/management';
 import { getCreds, pickDomain, tableChars } from '../utils/shared';
 import { isJsonMode, output } from '../utils/json-output';
 import { logActivity } from '../utils/activity-log';
@@ -19,7 +19,7 @@ export async function accountsList(domain?: string, options?: { all?: boolean })
       ? null
       : ora({ text: 'Fetching accounts...', spinner: 'dots12', color: 'cyan' }).start();
     try {
-      const { listDomains } = await import('../utils/directadmin');
+      const { listDomains } = await import('../utils/management');
       const domains = await listDomains(creds);
       spinner?.stop();
 

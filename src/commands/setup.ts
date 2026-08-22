@@ -1,13 +1,11 @@
 import chalk from 'chalk';
-import ora from 'ora';
 import inquirer from 'inquirer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import { theme } from '../utils/theme';
-import { getConfig, setConfig } from '../utils/config';
-import { testAuth } from '../utils/directadmin';
+import { getConfig } from '../utils/config';
 
 // ─── Tool detection ──────────────────────────────────────
 
@@ -395,7 +393,10 @@ export async function setupWizard(): Promise<void> {
 
   // Step 1: What to set up — pre-check only unconfigured items
   const currentConfig = getConfig();
-  const hasAuth = !!(currentConfig.daUsername && currentConfig.daLoginKey);
+  const hasAuth = !!(
+    (currentConfig.apiServer && currentConfig.apiUsername && currentConfig.apiKey) ||
+    (currentConfig.daUsername && currentConfig.daLoginKey)
+  );
 
   const { components } = await inquirer.prompt([
     {
@@ -405,8 +406,8 @@ export async function setupWizard(): Promise<void> {
       choices: [
         {
           name: hasAuth
-            ? `DirectAdmin API Authentication ${chalk.green('— configured')}`
-            : 'DirectAdmin API Authentication (account management)',
+            ? `Account Management Authentication ${chalk.green('— configured')}`
+            : 'Account Management Authentication',
           value: 'auth',
           checked: !hasAuth,
         },
@@ -418,48 +419,8 @@ export async function setupWizard(): Promise<void> {
 
   // Step 2: DirectAdmin Auth
   if (components.includes('auth')) {
-    console.log(theme.heading('DirectAdmin API Authentication'));
-    console.log(theme.muted('  Create a Login Key at Control Panel (panel.mxroute.com) -> Login Keys\n'));
-
-    const config = getConfig();
-    const answers = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'server',
-        message: theme.secondary('Server hostname:'),
-        default: config.server || '',
-        filter: (input: string) => input.replace('.mxrouting.net', '').replace(':2222', '').trim(),
-      },
-      {
-        type: 'input',
-        name: 'username',
-        message: theme.secondary('DirectAdmin username:'),
-        default: config.daUsername || '',
-      },
-      {
-        type: 'password',
-        name: 'loginKey',
-        message: theme.secondary('Login Key:'),
-        mask: '•',
-      },
-    ]);
-
-    const spinner = ora({ text: 'Testing authentication...', spinner: 'dots12', color: 'cyan' }).start();
-    try {
-      const result = await testAuth({ server: answers.server, username: answers.username, loginKey: answers.loginKey });
-      if (result.success) {
-        spinner.succeed(chalk.green('Authentication successful'));
-        setConfig('server', answers.server);
-        setConfig('daUsername', answers.username);
-        setConfig('daLoginKey', answers.loginKey);
-      } else {
-        spinner.fail(chalk.red(`Authentication failed: ${result.message}`));
-        console.log(theme.muted('  You can retry later with: mxroute auth login\n'));
-      }
-    } catch (err: any) {
-      spinner.fail(chalk.red(`Connection failed: ${err.message}`));
-    }
-    console.log('');
+    const { configSetup } = await import('./config');
+    await configSetup();
   }
 
   // Step 4: MCP Server

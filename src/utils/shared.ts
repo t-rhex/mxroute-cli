@@ -2,12 +2,43 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { theme } from './theme';
 import { getConfig } from './config';
-import { listDomains, DACredentials } from './directadmin';
+import { listDomains, ManagementCredentials } from './management';
 import { isJsonMode, outputError } from './json-output';
 
-export function getCreds(): DACredentials {
+interface ManagementConfigInput {
+  managementBackend?: 'directadmin' | 'mxroute-api';
+  apiServer?: string;
+  apiUsername?: string;
+  apiKey?: string;
+  server?: string;
+  daUsername?: string;
+  daLoginKey?: string;
+}
+
+export function resolveManagementCredentials(config: ManagementConfigInput): ManagementCredentials | null {
+  if (config.managementBackend === 'mxroute-api') {
+    if (!config.apiServer || !config.apiUsername || !config.apiKey) return null;
+    const legacy =
+      config.server && config.daUsername && config.daLoginKey
+        ? { server: config.server, username: config.daUsername, loginKey: config.daLoginKey }
+        : undefined;
+    return {
+      backend: 'mxroute-api',
+      server: config.apiServer,
+      username: config.apiUsername,
+      apiKey: config.apiKey,
+      ...(legacy ? { legacy } : {}),
+    };
+  }
+
+  if (!config.server || !config.daUsername || !config.daLoginKey) return null;
+  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
+}
+
+export function getCreds(): ManagementCredentials {
   const config = getConfig();
-  if (!config.daUsername || !config.daLoginKey) {
+  const credentials = resolveManagementCredentials(config);
+  if (!credentials) {
     if (isJsonMode()) {
       outputError('AUTH_REQUIRED', 'Not authenticated. Run mxroute config setup first.');
       return { server: '', username: '', loginKey: '' };
@@ -19,10 +50,10 @@ export function getCreds(): DACredentials {
     );
     process.exit(1);
   }
-  return { server: config.server, username: config.daUsername, loginKey: config.daLoginKey };
+  return credentials;
 }
 
-export async function pickDomain(creds: DACredentials, domain?: string): Promise<string> {
+export async function pickDomain(creds: ManagementCredentials, domain?: string): Promise<string> {
   if (domain) return domain;
 
   const config = getConfig();
