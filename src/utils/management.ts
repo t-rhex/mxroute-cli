@@ -247,14 +247,14 @@ export function createManagementClient(credentials: ManagementCredentials, adapt
     async setSpamConfig(domain: string, settings: Record<string, string>): Promise<any> {
       return legacy.setSpamConfig!(legacyCredentials('full SpamAssassin settings'), domain, settings);
     },
-    async listEmailFilters(domain: string, user: string): Promise<any[]> {
-      return legacy.listEmailFilters!(legacyCredentials('email filters'), domain, user);
+    async listEmailFilters(domain: string): Promise<any[]> {
+      return legacy.listEmailFilters!(legacyCredentials('email filters'), domain);
     },
-    async createEmailFilter(domain: string, user: string, filterData: Record<string, string>): Promise<any> {
-      return legacy.createEmailFilter!(legacyCredentials('email filters'), domain, user, filterData);
+    async createEmailFilter(domain: string, type: string, value: string): Promise<any> {
+      return legacy.createEmailFilter!(legacyCredentials('email filters'), domain, type, value);
     },
-    async deleteEmailFilter(domain: string, user: string, filterName: string): Promise<any> {
-      return legacy.deleteEmailFilter!(legacyCredentials('email filters'), domain, user, filterName);
+    async deleteEmailFilter(domain: string, filterId: string): Promise<any> {
+      return legacy.deleteEmailFilter!(legacyCredentials('email filters'), domain, filterId);
     },
     async listAutoresponders(domain: string): Promise<string[]> {
       return legacy.listAutoresponders!(legacyCredentials('autoresponders'), domain);
@@ -418,26 +418,21 @@ export function setSpamConfig(
   return createManagementClient(creds).setSpamConfig(domain, settings);
 }
 
-export function listEmailFilters(creds: ManagementCredentials, domain: string, user: string): Promise<any[]> {
-  return createManagementClient(creds).listEmailFilters(domain, user);
+export function listEmailFilters(creds: ManagementCredentials, domain: string): Promise<any[]> {
+  return createManagementClient(creds).listEmailFilters(domain);
 }
 
 export function createEmailFilter(
   creds: ManagementCredentials,
   domain: string,
-  user: string,
-  filterData: Record<string, string>,
+  type: string,
+  value: string,
 ): Promise<any> {
-  return createManagementClient(creds).createEmailFilter(domain, user, filterData);
+  return createManagementClient(creds).createEmailFilter(domain, type, value);
 }
 
-export function deleteEmailFilter(
-  creds: ManagementCredentials,
-  domain: string,
-  user: string,
-  filterName: string,
-): Promise<any> {
-  return createManagementClient(creds).deleteEmailFilter(domain, user, filterName);
+export function deleteEmailFilter(creds: ManagementCredentials, domain: string, filterId: string): Promise<any> {
+  return createManagementClient(creds).deleteEmailFilter(domain, filterId);
 }
 
 export function testAuth(

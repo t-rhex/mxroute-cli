@@ -573,7 +573,7 @@ const filtersCmd = program.command('filters').description('Manage email filters 
 filtersCmd
   .command('list [domain]')
   .alias('ls')
-  .description('List filters for an account')
+  .description('List domain-wide block filters')
   .action(async (domain?: string) => {
     const { filtersList } = await import('./commands/filters');
     await filtersList(domain);

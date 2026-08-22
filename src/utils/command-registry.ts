@@ -164,11 +164,11 @@ export const commandExamples: Record<string, CommandInfo> = {
     related: ['accounts list', 'filters', 'templates'],
   },
   filters: {
-    description: 'Manage email filters for accounts (legacy DirectAdmin)',
+    description: 'Manage domain-wide email block filters (legacy DirectAdmin)',
     examples: [
-      'mxroute filters list user@example.com',
-      'mxroute filters create user@example.com --rule "subject contains SPAM" --action delete',
-      'mxroute filters delete user@example.com --id FILTER_ID',
+      'mxroute filters list example.com',
+      'mxroute filters create example.com',
+      'mxroute filters delete example.com',
     ],
     related: ['spam', 'accounts list', 'autoresponder'],
   },

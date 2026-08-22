@@ -260,6 +260,17 @@ export class ImapClient {
     while (i < env.length) {
       const ch = env[i];
 
+      if (depth === 0 && current === '' && ch === '{') {
+        const literalMatch = env.substring(i).match(/^\{(\d+)\}\r\n/);
+        if (literalMatch) {
+          const length = parseInt(literalMatch[1], 10);
+          const start = i + literalMatch[0].length;
+          parts.push(env.substring(start, start + length));
+          i = start + length;
+          continue;
+        }
+      }
+
       if (ch === '"' && (i === 0 || env[i - 1] !== '\\')) {
         inQuote = !inQuote;
         if (!inQuote && depth === 0) {

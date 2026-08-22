@@ -54,7 +54,7 @@ import { runFullDnsCheck, checkSpfRecord, checkDkimRecord, checkDmarcRecord, che
 import { testAuth } from './utils/management';
 import { routeDnsAdd, routeDnsDelete } from './utils/dns-router';
 import { listProviders } from './providers';
-import { resolveManagementCredentials } from './utils/shared';
+import { isDirectForwardingLoop, resolveManagementCredentials, toServerHostname } from './utils/shared';
 
 function getCreds(): ManagementCredentials {
   const config = getConfig();
@@ -96,7 +96,7 @@ server.tool(
     const aliases = Object.keys(pointers).filter((k) => k !== 'error' && k !== 'text');
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ domain, aliases, server: `${creds.server}.mxrouting.net` }, null, 2) },
+        { type: 'text', text: JSON.stringify({ domain, aliases, server: toServerHostname(creds.server) }, null, 2) },
       ],
     };
   },
@@ -592,44 +592,31 @@ server.tool(
 
 server.tool(
   'list_email_filters',
-  'List email filters for an account (requires legacy DirectAdmin credentials)',
+  'List domain-wide email block filters (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
-    username: z.string().describe('Email username (before the @)'),
   },
-  async ({ domain, username }) => {
+  async ({ domain }) => {
     const creds = getCreds();
-    const filters = await listEmailFilters(creds, domain, username);
+    const filters = await listEmailFilters(creds, domain);
     return {
-      content: [{ type: 'text', text: JSON.stringify({ account: `${username}@${domain}`, filters }, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify({ domain, filters }, null, 2) }],
     };
   },
 );
 
 server.tool(
   'create_email_filter',
-  'Create an email filter rule (requires legacy DirectAdmin credentials)',
+  'Create a domain-wide email block filter (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
-    username: z.string().describe('Email username (before the @)'),
-    name: z.string().describe('Filter name'),
-    field: z.string().describe('Field to match: from, to, subject, body'),
-    match: z.string().describe('Match type: contains, equals, startswith, endswith'),
-    value: z.string().describe('Value to match against'),
-    action: z.string().describe('Action: discard, forward, move'),
-    destination: z.string().optional().describe('Destination (email for forward, folder for move)'),
+    type: z.enum(['email', 'domain', 'word', 'size']).describe('Value type to block'),
+    value: z.string().describe('Email address, domain, word, or message size to block'),
   },
-  async ({ domain, username, name, field, match, value, action, destination }) => {
+  async ({ domain, type, value }) => {
     const creds = getCreds();
-    const result = await createEmailFilter(creds, domain, username, {
-      name,
-      field,
-      match,
-      value,
-      action,
-      destination: destination || '',
-    });
-    const success = !result.error || result.error === '0';
+    const result = await createEmailFilter(creds, domain, type, value);
+    const success = !!result.success || result.error === '0';
     return {
       content: [
         {
@@ -646,13 +633,12 @@ server.tool(
   'Delete an email filter (requires legacy DirectAdmin credentials)',
   {
     domain: z.string().describe('Domain name'),
-    username: z.string().describe('Email username (before the @)'),
-    filterName: z.string().describe('Name of the filter to delete'),
+    filterId: z.string().describe('DirectAdmin filter ID'),
   },
-  async ({ domain, username, filterName }) => {
+  async ({ domain, filterId }) => {
     const creds = getCreds();
-    const result = await deleteEmailFilter(creds, domain, username, filterName);
-    const success = !result.error || result.error === '0';
+    const result = await deleteEmailFilter(creds, domain, filterId);
+    const success = !!result.success || result.error === '0';
     return {
       content: [
         {
@@ -1759,7 +1745,7 @@ server.tool(
         for (const fwd of forwarders) {
           try {
             const dest = await getForwarderDestination(creds, domain, fwd);
-            if (dest.includes(`@${domain}`)) {
+            if (isDirectForwardingLoop(`${fwd}@${domain}`, dest)) {
               results.push({ domain, check: 'Forwarding Loop', status: 'warn', message: `${fwd}@${domain} → ${dest}` });
               score -= 3;
             }

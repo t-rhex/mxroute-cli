@@ -319,12 +319,12 @@ Options: forward to existing account, forward to custom email, reject (`:fail:`)
 #### filters -- Email Filters
 
 ```bash
-mxroute filters list [domain]          # List filters for an account
+mxroute filters list [domain]          # List domain-wide block filters
 mxroute filters create [domain]        # Create a filter (interactive)
 mxroute filters delete [domain]        # Delete a filter
 ```
 
-Supports matching on from, to, subject, or body with actions to discard, forward, or move to a folder.
+Supports blocking an email address, sender domain, word or phrase, or message size across a domain.
 
 #### lists / mailinglist -- Mailing Lists
 

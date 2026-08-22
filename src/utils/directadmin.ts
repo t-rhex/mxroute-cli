@@ -64,6 +64,15 @@ async function daRequest(
     if (response.status === 404) {
       throw new Error('API endpoint not found. Check your server hostname is correct.');
     }
+    try {
+      const text = await response.text();
+      const data = JSON.parse(text);
+      const summary = data.error || data.text;
+      const detail = data.result || data.details;
+      if (summary) throw new Error(detail ? `${summary}: ${detail}` : summary);
+    } catch (err: any) {
+      if (err instanceof Error && !(err instanceof SyntaxError)) throw err;
+    }
     throw new Error(`DirectAdmin API error: ${response.status} ${response.statusText}`);
   }
 
@@ -286,43 +295,34 @@ export async function deleteDomainPointer(creds: DACredentials, domain: string, 
 
 // === Email Filter Operations ===
 
-export async function listEmailFilters(creds: DACredentials, domain: string, user: string): Promise<any[]> {
-  const result = await daRequest(
-    creds,
-    `CMD_API_EMAIL_FILTER?domain=${encodeURIComponent(domain)}&user=${encodeURIComponent(user)}&action=list`,
-  );
-  if (Array.isArray(result)) return result;
-  if (result.list) return result.list;
-  const keys = Object.keys(result).filter((k) => k !== 'error' && k !== 'text');
-  if (keys.length === 0) return [];
-  return keys.map((k) => ({ name: k, ...(typeof result[k] === 'object' ? result[k] : { value: result[k] }) }));
+export async function listEmailFilters(creds: DACredentials, domain: string): Promise<any[]> {
+  const result = await daRequest(creds, `CMD_API_EMAIL_FILTER?domain=${encodeURIComponent(domain)}`);
+  if (!result.filters || typeof result.filters !== 'object') return [];
+  return Object.entries(result.filters).map(([id, filter]) => ({
+    id,
+    ...(typeof filter === 'object' && filter !== null ? filter : { value: filter }),
+  }));
 }
 
 export async function createEmailFilter(
   creds: DACredentials,
   domain: string,
-  user: string,
-  filterData: Record<string, string>,
+  type: string,
+  value: string,
 ): Promise<any> {
   return daRequest(creds, 'CMD_API_EMAIL_FILTER', 'POST', {
-    action: 'create',
+    action: 'add',
     domain,
-    user,
-    ...filterData,
+    type,
+    value,
   });
 }
 
-export async function deleteEmailFilter(
-  creds: DACredentials,
-  domain: string,
-  user: string,
-  filterName: string,
-): Promise<any> {
+export async function deleteEmailFilter(creds: DACredentials, domain: string, filterId: string): Promise<any> {
   return daRequest(creds, 'CMD_API_EMAIL_FILTER', 'POST', {
     action: 'delete',
     domain,
-    user,
-    select0: filterName,
+    select0: filterId,
   });
 }
 

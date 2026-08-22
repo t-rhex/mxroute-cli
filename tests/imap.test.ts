@@ -97,6 +97,16 @@ describe('IMAP Client', () => {
       const result = await client.fetchEnvelopes(0, 10);
       expect(result).toEqual([]);
     });
+
+    it('parses literal-valued envelope subjects', () => {
+      const client = new ImapClient({ host: '', port: 0, user: '', password: '' });
+      const subject = 'Autoreply: Fwd: [MXROUTE-E2E] inbound message';
+      const response = [
+        `* 3 FETCH (UID 3 FLAGS () RFC822.SIZE 1111 ENVELOPE ("Sat, 22 Aug 2026 16:50:36 +0000" {${subject.length}}\r\n${subject} ((NIL NIL "sender" "example.com")) ((NIL NIL "sender" "example.com")) ((NIL NIL "sender" "example.com")) ((NIL NIL "recipient" "example.com")) NIL NIL NIL "<message@example.com>"))`,
+      ];
+
+      expect(client.parseEnvelopes(response)[0].subject).toBe(subject);
+    });
   });
 
   describe('fetchEnvelopesByUid', () => {

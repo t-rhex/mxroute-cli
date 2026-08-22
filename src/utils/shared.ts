@@ -111,6 +111,18 @@ export function validateDomain(input: string): true | string {
   return true;
 }
 
+export function toServerHostname(server: string): string {
+  return server.includes('.') ? server : `${server}.mxrouting.net`;
+}
+
+export function isDirectForwardingLoop(source: string, destinations: string): boolean {
+  const normalizedSource = source.trim().toLowerCase();
+  return destinations
+    .split(',')
+    .map((destination) => destination.trim().toLowerCase())
+    .includes(normalizedSource);
+}
+
 export const tableChars = {
   top: '─',
   'top-mid': '┬',

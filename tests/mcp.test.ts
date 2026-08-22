@@ -161,6 +161,18 @@ describe('MCP Server', () => {
     expect(props.bcc).toBeDefined();
   });
 
+  it('email filter tools should expose DirectAdmin domain block fields', () => {
+    const listTool = getTools().find((t: any) => t.name === 'list_email_filters');
+    const createTool = getTools().find((t: any) => t.name === 'create_email_filter');
+    const deleteTool = getTools().find((t: any) => t.name === 'delete_email_filter');
+
+    expect(Object.keys(listTool.inputSchema.properties)).toEqual(['domain']);
+    expect(createTool.inputSchema.properties.type.enum).toEqual(['email', 'domain', 'word', 'size']);
+    expect(createTool.inputSchema.properties.username).toBeUndefined();
+    expect(deleteTool.inputSchema.properties.filterId).toBeDefined();
+    expect(deleteTool.inputSchema.properties.filterName).toBeUndefined();
+  });
+
   it('mark_email should support flagged/unflagged status', () => {
     const tool = getTools().find((t: any) => t.name === 'mark_email');
     expect(tool).toBeDefined();
