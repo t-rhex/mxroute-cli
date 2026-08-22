@@ -1012,6 +1012,7 @@ npm run build
 - Husky pre-commit hooks run lint-staged on every commit
 - GitHub Actions CI validates on Node.js 20 and 22
 - Dependabot checks npm and GitHub Actions dependencies weekly
+- Trivy scans dependencies, secrets, and configuration for high-severity findings
 - Tag-based release workflow publishes to npm with provenance
 
 ### Project Structure
