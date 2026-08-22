@@ -1011,7 +1011,7 @@ npm run build
 - ESLint and Prettier enforce consistent style
 - Husky pre-commit hooks run lint-staged on every commit
 - GitHub Actions CI validates on Node.js 20 and 22
-- Dependabot checks npm and GitHub Actions dependencies weekly
+- Dependabot checks dependencies weekly and auto-merges passing minor and patch updates
 - Trivy scans dependencies, secrets, and configuration for high-severity findings
 - Tag-based release workflow publishes to npm with provenance
 
